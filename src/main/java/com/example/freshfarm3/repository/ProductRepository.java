@@ -18,6 +18,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findByFarmerAndStatus(Farmer farmer, Product.ProductStatus status);
 
+    long countByFarmer(Farmer farmer);
+
+    long countByFarmerAndStatus(Farmer farmer, Product.ProductStatus status);
+
     // ── Browse by category ────────────────────────────────────
     List<Product> findByCategoryAndStatus(Category category, Product.ProductStatus status);
 
@@ -52,7 +56,4 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("category") Category category,
             @Param("keyword")  String keyword,
             @Param("status")   Product.ProductStatus status);
-
-    // ── Count active products per farmer (for dashboard) ──────
-    long countByFarmerAndStatus(Farmer farmer, Product.ProductStatus status);
 }

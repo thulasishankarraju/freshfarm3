@@ -29,6 +29,17 @@ public class Product extends BaseEntity {
     @Column(nullable = false)
     private String unit;           // e.g. "kg", "dozen", "piece"
 
+    // ── Status ───────────────────────────────────────────────────
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private ProductStatus status = ProductStatus.ACTIVE;
+
+    public enum ProductStatus {
+        ACTIVE, INACTIVE, OUT_OF_STOCK
+    }
+    // ────────────────────────────────────────────────────────────
+
     // ── Sprint 3: Inventory fields ──────────────────────────────
     @Column(nullable = false)
     private Integer stockQuantity; // how many units are in stock
@@ -72,7 +83,7 @@ public class Product extends BaseEntity {
 
     /**
      * Deducts stock after a successful order.
-     * Automatically marks product unavailable when stock hits zero.
+     * Automatically marks product unavailable and OUT_OF_STOCK when stock hits zero.
      * Throws if deduction would go negative (safety guard).
      */
     public void deductStock(int qty) {
@@ -85,6 +96,7 @@ public class Product extends BaseEntity {
         this.stockQuantity -= qty;
         if (this.stockQuantity == 0) {
             this.isAvailable = false;
+            this.status = ProductStatus.OUT_OF_STOCK;
         }
     }
 
@@ -94,6 +106,9 @@ public class Product extends BaseEntity {
     public void restoreStock(int qty) {
         this.stockQuantity += qty;
         this.isAvailable = true;
+        if (this.status == ProductStatus.OUT_OF_STOCK) {
+            this.status = ProductStatus.ACTIVE;
+        }
     }
     // ────────────────────────────────────────────────────────────
 }

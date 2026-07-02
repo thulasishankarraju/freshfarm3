@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,10 +33,6 @@ public class FarmerController {
 
     // ── Dashboard summary ─────────────────────────────────────
 
-    /**
-     * GET /api/farmer/dashboard
-     * Returns basic stats for the farmer's dashboard.
-     */
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> getDashboard() {
         Farmer farmer = getAuthenticatedFarmer();
@@ -46,24 +43,22 @@ public class FarmerController {
                 .countByFarmerAndStatus(farmer, Product.ProductStatus.INACTIVE);
         long outOfStockCount = productRepository
                 .countByFarmerAndStatus(farmer, Product.ProductStatus.OUT_OF_STOCK);
+        long totalCount = productRepository.countByFarmer(farmer);
 
-        return ResponseEntity.ok(Map.of(
-                "farmerId",        farmer.getId(),
-                "farmerName",      farmer.getUser().getName(),
-                "farmName",        farmer.getFarmName(),
-                "activeProducts",  activeCount,
-                "inactiveProducts",inactiveCount,
-                "outOfStock",      outOfStockCount,
-                "totalProducts",   activeCount + inactiveCount + outOfStockCount
-        ));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("farmerId", farmer.getId());
+        response.put("farmerName", farmer.getUser().getFullName());
+        response.put("farmName", farmer.getFarmName());
+        response.put("activeProducts", activeCount);
+        response.put("inactiveProducts", inactiveCount);
+        response.put("outOfStock", outOfStockCount);
+        response.put("totalProducts", totalCount);
+
+        return ResponseEntity.ok(response);
     }
 
     // ── My products ───────────────────────────────────────────
 
-    /**
-     * GET /api/farmer/products
-     * Lists all products belonging to the authenticated farmer.
-     */
     @GetMapping("/products")
     public ResponseEntity<List<ProductResponse>> getMyProducts() {
         String email = SecurityContextHolder.getContext()
