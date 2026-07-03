@@ -1,19 +1,19 @@
 package com.example.freshfarm3.service;
 
+
 import com.example.freshfarm3.dto.request.ProductRequest;
-import com.example.freshfarm3.dto.response.CategoryResponse;
 import com.example.freshfarm3.dto.response.ProductResponse;
 import com.example.freshfarm3.entity.Category;
 import com.example.freshfarm3.entity.Farmer;
 import com.example.freshfarm3.entity.Product;
 import com.example.freshfarm3.entity.ProductImage;
-import com.example.freshfarm3.exception.ResourceNotFoundException;
-import com.example.freshfarm3.exception.ValidationException;
 import com.example.freshfarm3.repository.CategoryRepository;
 import com.example.freshfarm3.repository.FarmerRepository;
 import com.example.freshfarm3.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,49 +27,56 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductService {
 
-    private final ProductRepository  productRepository;
-    private final FarmerRepository   farmerRepository;
-    private final CategoryRepository categoryRepository;
-    private final FileUploadService  fileUploadService;
+    private final ProductRepository    productRepository;
+    private final FarmerRepository     farmerRepository;
+    private final CategoryRepository   categoryRepository;
+    private final FileUploadService    fileUploadService;
 
     // ── CREATE ───────────────────────────────────────────────────
     @Transactional
-    public ProductResponse createProduct(ProductRequest req, String farmerEmail, List<MultipartFile> images) {
-        Farmer farmer = (Farmer) farmerRepository.findByUser_Email(farmerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found: " + farmerEmail));
+    public ProductResponse createProduct(ProductRequest req,
+                                         String farmerEmail,
+                                         List<MultipartFile> images) {
+        Farmer farmer = farmerRepository.findByUserEmail(farmerEmail)
+                .orElseThrow(() -> new RuntimeException("Farmer not found"));
 
         Category category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + req.getCategoryId()));
+                .orElseThrow(() -> new RuntimeException("Category not found"));
 
         Product product = Product.builder()
                 .name(req.getName())
                 .description(req.getDescription())
                 .price(req.getPrice())
                 .unit(req.getUnit())
-                .stockQuantity(req.getQuantity())
-                .isAvailable(req.getQuantity() != null && req.getQuantity() > 0)
+                .stockQuantity(req.getStockQuantity())   // Sprint 3
+                .isAvailable(req.getStockQuantity() > 0) // Sprint 3
                 .grade(req.getGrade())
                 .origin(req.getOrigin())
-                .isOrganic(Boolean.TRUE.equals(req.getIsOrganic()))
-                .status(parseStatus(req.getStatus()))
+                .isOrganic(req.getIsOrganic())
                 .category(category)
                 .farmer(farmer)
                 .build();
 
-        Product saved = productRepository.save(product);
-
         if (images != null && !images.isEmpty()) {
-            fileUploadService.uploadProductImages(images, saved);
-            saved = productRepository.findById(saved.getId()).orElse(saved);
+            images.forEach(file -> {
+                String url = fileUploadService.uploadFile(file);
+                ProductImage pi = new ProductImage();
+                pi.setImageUrl(url);
+                pi.setProduct(product);
+                product.getImages().add(pi);
+            });
         }
 
+        Product saved = productRepository.save(product);
         log.info("Product created: {} by farmer: {}", saved.getId(), farmerEmail);
         return mapToResponse(saved);
     }
 
     // ── UPDATE ───────────────────────────────────────────────────
     @Transactional
-    public ProductResponse updateProduct(Long productId, ProductRequestDto req, String farmerEmail) {
+    public ProductResponse updateProduct(Long productId,
+                                         ProductRequest req,
+                                         String farmerEmail) {
         Product product = getProductOwnedByFarmer(productId, farmerEmail);
 
         product.setName(req.getName());
@@ -78,16 +85,15 @@ public class ProductService {
         product.setUnit(req.getUnit());
         product.setGrade(req.getGrade());
         product.setOrigin(req.getOrigin());
-        product.setIsOrganic(Boolean.TRUE.equals(req.getIsOrganic()));
-        product.setStockQuantity(req.getQuantity());
-        product.setIsAvailable(req.getQuantity() != null && req.getQuantity() > 0);
+        product.setIsOrganic(req.getIsOrganic());
 
-        if (req.getStatus() != null) {
-            product.setStatus(parseStatus(req.getStatus()));
-        }
+        // Sprint 3 — update inventory fields
+        product.setStockQuantity(req.getStockQuantity());
+        product.setIsAvailable(req.getStockQuantity() > 0);
+
         if (req.getCategoryId() != null) {
             Category category = categoryRepository.findById(req.getCategoryId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + req.getCategoryId()));
+                    .orElseThrow(() -> new RuntimeException("Category not found"));
             product.setCategory(category);
         }
 
@@ -108,84 +114,54 @@ public class ProductService {
     @Transactional(readOnly = true)
     public ProductResponse getProductById(Long productId) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
         return mapToResponse(product);
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> getAllActiveProducts() {
-        return productRepository.findByStatus(Product.ProductStatus.ACTIVE)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    public Page<ProductResponse> getAllAvailableProducts(Pageable pageable) {
+        return productRepository.findByIsAvailableTrue(pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> searchProducts(String keyword) {
-        return productRepository.searchByKeyword(keyword, Product.ProductStatus.ACTIVE)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    public Page<ProductResponse> searchProducts(String keyword, Pageable pageable) {
+        return productRepository
+                .findByNameContainingIgnoreCaseAndIsAvailableTrue(keyword, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> filterByCategory(Long categoryId) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
-        return productRepository.findByCategoryAndStatus(category, Product.ProductStatus.ACTIVE)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<ProductResponse> searchByCategoryAndKeyword(Long categoryId, String keyword) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + categoryId));
-        return productRepository.searchByCategoryAndKeyword(category, keyword, Product.ProductStatus.ACTIVE)
-                .stream().map(this::mapToResponse).collect(Collectors.toList());
+    public Page<ProductResponse> filterByCategory(Long categoryId, Pageable pageable) {
+        return productRepository
+                .findByCategoryIdAndIsAvailableTrue(categoryId, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponse> getMyProducts(String farmerEmail) {
-        Farmer farmer = farmerRepository.findByUser_Email(farmerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found: " + farmerEmail));
+        Farmer farmer = farmerRepository.findByUserEmail(farmerEmail)
+                .orElseThrow(() -> new RuntimeException("Farmer not found"));
         return productRepository.findByFarmer(farmer).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    // ── CATEGORIES ───────────────────────────────────────────────
-    @Transactional(readOnly = true)
-    public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll().stream()
-                .map(c -> CategoryResponse.builder()
-                        .id(c.getId())
-                        .name(c.getName())
-                        .description(c.getDescription())
-                        .build())
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public CategoryResponse createCategory(String name, String description) {
-        if (categoryRepository.existsByNameIgnoreCase(name)) {
-            throw new ValidationException("Category already exists: " + name);
-        }
-        Category category = Category.builder().name(name).description(description).build();
-        Category saved = categoryRepository.save(category);
-        return CategoryResponse.builder()
-                .id(saved.getId())
-                .name(saved.getName())
-                .description(saved.getDescription())
-                .build();
-    }
-
     // ── Sprint 3: Stock Validation ───────────────────────────────
+    /**
+     * Validates that the product exists, is available, and has enough stock.
+     * Called by CartService before adding an item.
+     */
     @Transactional(readOnly = true)
     public void validateStock(Long productId, int requestedQty) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
 
         if (!Boolean.TRUE.equals(product.getIsAvailable())) {
-            throw new ValidationException("Product is currently unavailable: " + product.getName());
+            throw new RuntimeException("Product is currently unavailable: " + product.getName());
         }
         if (!product.hasStock(requestedQty)) {
-            throw new ValidationException(
+            throw new RuntimeException(
                     "Insufficient stock for '" + product.getName() +
                             "'. Available: " + product.getStockQuantity() +
                             ", Requested: " + requestedQty
@@ -193,28 +169,37 @@ public class ProductService {
         }
     }
 
+    /**
+     * Deducts stock after a confirmed order.
+     * Called by OrderService inside a transaction.
+     */
     @Transactional
     public void deductStock(Long productId, int qty) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
-        product.deductStock(qty);
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
+        product.deductStock(qty);   // uses the entity helper — prevents negative stock
         productRepository.save(product);
         log.info("Stock deducted: productId={} qty={} remaining={}", productId, qty, product.getStockQuantity());
     }
 
+    /**
+     * Restores stock when an order is cancelled.
+     * Called by OrderService.
+     */
     @Transactional
     public void restoreStock(Long productId, int qty) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
         product.restoreStock(qty);
         productRepository.save(product);
         log.info("Stock restored: productId={} qty={}", productId, qty);
     }
+    // ─────────────────────────────────────────────────────────────
 
     // ── INTERNAL HELPERS ─────────────────────────────────────────
     private Product getProductOwnedByFarmer(Long productId, String farmerEmail) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
 
         if (!product.getFarmer().getUser().getEmail().equals(farmerEmail)) {
             throw new AccessDeniedException("You do not own this product");
@@ -222,43 +207,25 @@ public class ProductService {
         return product;
     }
 
-    private Product.ProductStatus parseStatus(String status) {
-        if (status == null || status.isBlank()) {
-            return Product.ProductStatus.ACTIVE;
-        }
-        try {
-            return Product.ProductStatus.valueOf(status.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ValidationException("Invalid product status: " + status);
-        }
-    }
-
     public ProductResponse mapToResponse(Product p) {
-        String primaryImageUrl = p.getImages().stream()
-                .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+        ProductResponse res = new ProductResponse();
+        res.setId(p.getId());
+        res.setName(p.getName());
+        res.setDescription(p.getDescription());
+        res.setPrice(p.getPrice());
+        res.setUnit(p.getUnit());
+        res.setStockQuantity(p.getStockQuantity());   // Sprint 3
+        res.setIsAvailable(p.getIsAvailable());        // Sprint 3
+        res.setGrade(p.getGrade() != null ? p.getGrade().name() : null);
+        res.setOrigin(p.getOrigin());
+        res.setIsOrganic(p.getIsOrganic());
+        res.setCategoryId(p.getCategory().getId());
+        res.setCategoryName(p.getCategory().getName());
+        res.setFarmerId(p.getFarmer().getId());
+        res.setFarmerName(p.getFarmer().getUser().getName());
+        res.setImages(p.getImages().stream()
                 .map(ProductImage::getImageUrl)
-                .findFirst()
-                .orElseGet(() -> p.getImages().stream()
-                        .map(ProductImage::getImageUrl)
-                        .findFirst()
-                        .orElse(null));
-
-        return ProductResponse.builder()
-                .id(p.getId())
-                .name(p.getName())
-                .description(p.getDescription())
-                .price(p.getPrice())
-                .quantity(p.getStockQuantity())
-                .status(p.getStatus() != null ? p.getStatus().name() : null)
-                .categoryId(p.getCategory().getId())
-                .categoryName(p.getCategory().getName())
-                .farmerId(p.getFarmer().getId())
-                .farmerName(p.getFarmer().getUser().getFullName())
-                .farmName(p.getFarmer().getFarmName())
-                .primaryImageUrl(primaryImageUrl)
-                .imageUrls(p.getImages().stream().map(ProductImage::getImageUrl).collect(Collectors.toList()))
-                .createdAt(p.getCreatedAt())
-                .updatedAt(p.getUpdatedAt())
-                .build();
+                .collect(Collectors.toList()));
+        return res;
     }
 }

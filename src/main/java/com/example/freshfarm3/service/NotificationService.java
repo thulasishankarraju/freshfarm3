@@ -43,7 +43,7 @@ public class NotificationService {
         emailService.send(
                 buyer.getEmail(),
                 "FarmFresh — Order Confirmed 🌿",
-                "Hi " + buyer.getName() + ",\n\n" +
+                "Hi " + buyer.getFullName() + ",\n\n" +
                         "Your order #" + orderNum + " for " + amount + " has been placed successfully!\n" +
                         "We'll notify you as soon as the farmer confirms it.\n\n" +
                         "Delivery to: " + order.getDeliveryAddress().getCity() + "\n\n" +
@@ -69,15 +69,15 @@ public class NotificationService {
                     saveNotification(
                             farmerUser,
                             "New Order Received! 🧑‍🌾",
-                            "New order #" + orderNum + " from " + buyer.getName() +
+                            "New order #" + orderNum + " from " + buyer.getFullName() +
                                     ". Please confirm in your dashboard."
                     );
 
                     emailService.send(
                             farmerUser.getEmail(),
                             "FarmFresh — New Order for You! 🧑‍🌾",
-                            "Hi " + farmerUser.getName() + ",\n\n" +
-                                    "You have a new order #" + orderNum + " from " + buyer.getName() + ".\n" +
+                            "Hi " + farmerUser.getFullName() + ",\n\n" +
+                                    "You have a new order #" + orderNum + " from " + buyer.getFullName() + ".\n" +
                                     "Please log in and confirm it so we can dispatch it.\n\n" +
                                     "Team FarmFresh"
                     );
@@ -100,7 +100,7 @@ public class NotificationService {
         emailService.send(
                 buyer.getEmail(),
                 "FarmFresh — Order Confirmed ✅",
-                "Hi " + buyer.getName() + ",\n\n" +
+                "Hi " + buyer.getFullName() + ",\n\n" +
                         "Your order #" + order.getOrderNumber() + " has been confirmed and is being prepared.\n\n" +
                         "Team FarmFresh"
         );
@@ -127,7 +127,7 @@ public class NotificationService {
         emailService.send(
                 buyer.getEmail(),
                 "FarmFresh — Order Cancelled",
-                "Hi " + buyer.getName() + ",\n\n" +
+                "Hi " + buyer.getFullName() + ",\n\n" +
                         "Your order #" + order.getOrderNumber() + " has been cancelled.\n" +
                         "If you paid online, a refund will be processed in 5–7 business days.\n\n" +
                         "Team FarmFresh"
