@@ -173,7 +173,25 @@ public class CartService {
         List<CartResponse.CartItemResponseDto> itemDtos = items.stream()
                 .map(item -> {
                     Product p = item.getProduct();
-                }
+                    return CartResponse.CartItemResponseDto.builder()
+                            .cartItemId(item.getId())
+                            .productId(p.getId())
+                            .productName(p.getName())
+                            .price(item.getPrice())
+                            .quantity(item.getQuantity())
+                            .subtotal(item.getSubtotal())
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        BigDecimal total = itemDtos.stream()
+                .map(CartResponse.CartItemResponseDto::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return CartResponse.builder()
+                .cartId(cart.getId())
+                .items(itemDtos)
+                .totalAmount(total)
+                .build();
     }
-
-
+}

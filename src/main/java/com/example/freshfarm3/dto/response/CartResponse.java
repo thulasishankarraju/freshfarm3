@@ -30,4 +30,6 @@ public class CartResponse {
         private Integer availableStock;
         private Boolean isAvailable;
     }
+
 }
+
