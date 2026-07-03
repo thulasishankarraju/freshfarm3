@@ -35,7 +35,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class FileUploadService {
+public class  FileUploadService {
 
     private final ProductImageRepository productImageRepository;
     private final ProductRepository      productRepository;

@@ -151,7 +151,7 @@ public class CartService {
     }
 
     private Buyer getBuyer(String email) {
-        return buyerRepository.findByUserEmail(email)
+        return buyerRepository.findByUser_Email(email)
                 .orElseThrow(() -> new RuntimeException("Buyer not found"));
     }
 
@@ -177,3 +177,7 @@ public class CartService {
     }
 
 
+                    return null;
+    }
+        return null;
+    }

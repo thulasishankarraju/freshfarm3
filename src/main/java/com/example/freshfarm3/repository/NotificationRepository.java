@@ -24,4 +24,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Transactional
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.user = :user")
     void markAllAsReadForUser(@Param("user") User user);
+
+    List<Notification> findByUserEmailOrderByCreatedAtDesc(String email);
 }

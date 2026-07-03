@@ -27,14 +27,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // ── Browse by category ────────────────────────────────────
     List<Product> findByCategoryAndStatus(Category category, Product.ProductStatus status);
 
-    Page<Product> findByCategory_IdAndStatus(
-            Long categoryId, Product.ProductStatus status, Pageable pageable);
-
-    Page<Product> findByStatus(Product.ProductStatus status, Pageable pageable);
+    List<Product> findByStatus(Product.ProductStatus status);
 
     // ── Search by name ────────────────────────────────────────
-    Page<Product> findByNameContainingIgnoreCaseAndStatus(
-            String name, Product.ProductStatus status, Pageable pageable);
+    List<Product> findByNameContainingIgnoreCaseAndStatus(
+            String name, Product.ProductStatus status);
 
     // ── Keyword search across name + description ──────────────
     @Query("""
@@ -62,5 +59,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("keyword")  String keyword,
             @Param("status")   Product.ProductStatus status);
 
-    long countByIsAvailableTrue();
+
+
+    long countByAvailableTrue();
+
+    double findAverageProductRating();
 }

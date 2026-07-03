@@ -1,5 +1,6 @@
 package com.example.freshfarm3.service;
 
+import com.example.freshfarm3.entity.Notification;
 import com.example.freshfarm3.entity.Order;
 import com.example.freshfarm3.entity.OrderItem;
 import com.example.freshfarm3.entity.User;
