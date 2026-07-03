@@ -50,7 +50,7 @@ public class AgentController {
 
         return ResponseEntity.ok(Map.of(
                 "agentId",       agent.getId(),
-                "name",          agent.getUser().getName(),
+                "name",          agent.getUser().getFullName(),
                 "email",         agent.getUser().getEmail(),
                 "phone",         agent.getPhone(),
                 "vehicleNumber", agent.getVehicleNumber(),

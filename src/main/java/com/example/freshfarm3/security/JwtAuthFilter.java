@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +19,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -43,6 +45,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             userEmail = jwtUtil.extractEmail(jwt);
         } catch (Exception e) {
+            log.debug("Rejected request with malformed/invalid JWT: {}", e.getMessage());
             filterChain.doFilter(request, response);
             return;
         }
@@ -51,7 +54,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
 
-            if (jwtUtil.isTokenValid(jwt)) {
+            // Belt-and-suspenders: confirm the token's email actually matches
+            // the user we loaded, since isTokenValid(jwt) alone doesn't check that.
+            boolean emailMatches = userEmail.equals(userDetails.getUsername());
+
+            if (emailMatches && jwtUtil.isTokenValid(jwt)) {
 
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(
@@ -63,6 +70,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                log.debug("JWT failed validation for user {}", userEmail);
             }
         }
 

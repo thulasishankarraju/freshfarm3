@@ -2,7 +2,7 @@ package com.example.freshfarm3.controller;
 
 import com.example.freshfarm3.dto.request.SubscriptionRequest;
 import com.example.freshfarm3.dto.response.SubscriptionResponse;
-import com.example.freshfarm3.security.JwtUtil;
+import com.example.freshfarm3.security.AppUserDetails;
 import com.example.freshfarm3.service.SubscriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,6 @@ import java.util.List;
 public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
-    private final JwtUtil jwtUtil;
 
     /**
      * POST /api/subscriptions
@@ -31,9 +31,9 @@ public class SubscriptionController {
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<SubscriptionResponse> create(
             @Valid @RequestBody SubscriptionRequest request,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("POST /api/subscriptions — buyerUserId={}", buyerUserId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(subscriptionService.createSubscription(request, buyerUserId));
@@ -46,9 +46,9 @@ public class SubscriptionController {
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<SubscriptionResponse> pause(
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("PUT /api/subscriptions/{}/pause — buyerUserId={}", id, buyerUserId);
         return ResponseEntity.ok(subscriptionService.pauseSubscription(id, buyerUserId));
     }
@@ -60,9 +60,9 @@ public class SubscriptionController {
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<SubscriptionResponse> resume(
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("PUT /api/subscriptions/{}/resume — buyerUserId={}", id, buyerUserId);
         return ResponseEntity.ok(subscriptionService.resumeSubscription(id, buyerUserId));
     }
@@ -74,9 +74,9 @@ public class SubscriptionController {
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<String> cancel(
             @PathVariable Long id,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("DELETE /api/subscriptions/{} — buyerUserId={}", id, buyerUserId);
         subscriptionService.cancelSubscription(id, buyerUserId);
         return ResponseEntity.ok("Subscription cancelled successfully");
@@ -88,17 +88,10 @@ public class SubscriptionController {
     @GetMapping("/my-subscriptions")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<List<SubscriptionResponse>> getMySubscriptions(
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("GET /api/subscriptions/my-subscriptions — buyerUserId={}", buyerUserId);
         return ResponseEntity.ok(subscriptionService.getMySubscriptions(buyerUserId));
-    }
-
-    // ─── Helper ───────────────────────────────────────────────────────────────
-
-    private Long extractUserId(String authHeader) {
-        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
-        return jwtUtil.extractUserId(token);
     }
 }

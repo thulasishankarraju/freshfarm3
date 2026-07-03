@@ -61,6 +61,7 @@ public class Farmer extends BaseEntity {
      * Admin must approve farmer before they can list products.
      * Default: false (pending approval)
      */
+    @Builder.Default
     @Column(name = "approved", nullable = false)
     private boolean approved = false;
 

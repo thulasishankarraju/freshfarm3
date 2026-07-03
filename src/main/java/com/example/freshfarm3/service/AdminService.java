@@ -1,16 +1,8 @@
 package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.dto.response.DashboardStatsResponse;
-import com.example.freshfarm3.entity.User;
+import com.example.freshfarm3.entity.*;
 import com.example.freshfarm3.enums.OrderStatus;
-import com.example.freshfarm3.repository.*;
-import com.example.freshfarm3.dto.response.FarmerResponse;
-import com.example.freshfarm3.dto.response.OrderResponse;
-import com.example.freshfarm3.entity.Farmer;
-import com.example.freshfarm3.entity.Notification;
-import com.example.freshfarm3.exception.ResourceNotFoundException;
-import com.example.freshfarm3.exception.ValidationException;
-import com.example.freshfarm3.repository.*;
 import com.example.freshfarm3.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.TextStyle;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,275 +26,240 @@ public class AdminService {
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
     private final DeliveryAgentRepository deliveryAgentRepository;
-    private final ReviewRepository        reviewRepository;
+    private final ReviewRepository reviewRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final NotificationRepository  notificationRepository;
+    private final NotificationRepository notificationRepository;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  DASHBOARD STATISTICS
-    // ─────────────────────────────────────────────────────────────────────────
+    // ===========================================================
+    // Dashboard
+    // ===========================================================
 
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStats() {
-        log.info("Building dashboard statistics");
 
-        LocalDate     today        = LocalDate.now();
-        LocalDateTime startOfDay   = today.atStartOfDay();
-        LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();
-        LocalDateTime now          = LocalDateTime.now();
+        LocalDate today = LocalDate.now();
 
-        // User counts
-        long totalBuyers   = buyerRepository.count();
-        long totalFarmers  = farmerRepository.count();
-        long totalUsers    = userRepository.count();
-        long pendingFarmers  = farmerRepository.countByApprovalStatus("PENDING");
-        long approvedFarmers = farmerRepository.countByApprovalStatus("APPROVED");
+        long totalUsers = userRepository.count();
+        long totalBuyers = buyerRepository.count();
+        long totalFarmers = farmerRepository.count();
 
-        // Product counts
-        long totalProducts  = productRepository.count();
-        long activeProducts = productRepository.countByAvailableTrue();
-        double avgRating    = productRepository.findAverageProductRating();
+        long approvedFarmers = farmerRepository.countByApproved(true);
+        long pendingFarmers = totalFarmers - approvedFarmers;
 
-        // Order counts
-        long ordersToday      = orderRepository.countByOrderDateBetween(startOfDay, now);
-        long ordersThisMonth  = orderRepository.countByOrderDateBetween(startOfMonth, now);
-        long totalOrders      = orderRepository.count();
-        long deliveredOrders  = orderRepository.countByOrderStatus(OrderStatus.DELIVERED);
-        long pendingDeliveries = orderRepository.countByOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
+        long totalProducts = productRepository.count();
 
-        // Revenue
-        BigDecimal totalRevenue     = orderRepository.sumTotalAmountByPaymentStatus("PAID");
-        BigDecimal revenueToday     = orderRepository.sumTotalAmountByPaymentStatusAndDateBetween("PAID", startOfDay, now);
-        BigDecimal revenueThisMonth = orderRepository.sumTotalAmountByPaymentStatusAndDateBetween("PAID", startOfMonth, now);
+        long activeProducts = productRepository.findAll()
+                .stream()
+                .filter(Product::getIsAvailable)
+                .count();
 
-        // Delivery agents
-        long activeAgents = deliveryAgentRepository.countByActiveTrue();
+        long totalOrders = orderRepository.count();
 
-        // Reviews
+        long deliveredOrders = orderRepository.findByOrderStatus(OrderStatus.DELIVERED).size();
+        long shippedOrders = orderRepository.findByOrderStatus(OrderStatus.SHIPPED).size();
+
+        long ordersToday = orderRepository.findAll()
+                .stream()
+                .filter(o -> o.getOrderDate() != null)
+                .filter(o -> o.getOrderDate().toLocalDate().equals(today))
+                .count();
+
+        BigDecimal revenueToday = orderRepository.findAll()
+                .stream()
+                .filter(o -> "PAID".equalsIgnoreCase(o.getPaymentStatus()))
+                .filter(o -> o.getOrderDate() != null)
+                .filter(o -> o.getOrderDate().toLocalDate().equals(today))
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalRevenue = orderRepository.findAll()
+                .stream()
+                .filter(o -> "PAID".equalsIgnoreCase(o.getPaymentStatus()))
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long activeAgents = deliveryAgentRepository.findByIsAvailableTrue().size();
         long totalReviews = reviewRepository.count();
-
-        // Subscriptions
-        long activeSubscriptions = subscriptionRepository.countByActiveTrue();
-
-        // Charts
-        List<Map<String, Object>> revenueByMonth = buildRevenueByMonth();
-        List<Map<String, Object>> ordersByMonth  = buildOrdersByMonth();
-        List<Map<String, Object>> topProducts    = buildTopProducts();
-        List<Map<String, Object>> topFarmers     = buildTopFarmers();
+        long activeSubscriptions = subscriptionRepository.count();
 
         return DashboardStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .totalBuyers(totalBuyers)
                 .totalFarmers(totalFarmers)
-                .pendingFarmers(pendingFarmers)
                 .approvedFarmers(approvedFarmers)
+                .pendingFarmers(pendingFarmers)
                 .totalProducts(totalProducts)
                 .activeProducts(activeProducts)
-                .averageProductRating(avgRating)
-                .ordersToday(ordersToday)
-                .ordersThisMonth(ordersThisMonth)
                 .totalOrders(totalOrders)
+                .ordersToday(ordersToday)
+                .ordersThisMonth(0)
                 .deliveredOrders(deliveredOrders)
-                .pendingDeliveries(pendingDeliveries)
-                .totalRevenue(totalRevenue != null ? totalRevenue : BigDecimal.ZERO)
-                .revenueToday(revenueToday != null ? revenueToday : BigDecimal.ZERO)
-                .revenueThisMonth(revenueThisMonth != null ? revenueThisMonth : BigDecimal.ZERO)
+                .pendingDeliveries(shippedOrders)
+                .totalRevenue(totalRevenue)
+                .revenueToday(revenueToday)
+                .revenueThisMonth(BigDecimal.ZERO)
+                .averageProductRating(0)
                 .activeDeliveryAgents(activeAgents)
                 .totalReviews(totalReviews)
                 .activeSubscriptions(activeSubscriptions)
-                .revenueByMonth(revenueByMonth)
-                .ordersByMonth(ordersByMonth)
-                .topProducts(topProducts)
-                .topFarmers(topFarmers)
+                .revenueByMonth(buildRevenueByMonth())
+                .ordersByMonth(buildOrdersByMonth())
+                .topProducts(buildTopProducts())
+                .topFarmers(buildTopFarmers())
                 .build();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  PENDING FARMERS
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @Transactional(readOnly = true)
-    public List<DashboardStatsResponse.FarmerSummary> getPendingFarmers() {
-        return farmerRepository.findByApprovalStatus("PENDING")
-                .stream()
-                .map(this::mapToFarmerSummary)
-                .collect(Collectors.toList());
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  APPROVE FARMER
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @Transactional
-    public DashboardStatsResponse.FarmerSummary approveFarmer(Long farmerId) {
-        Farmer farmer = farmerRepository.findById(farmerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found: " + farmerId));
-
-        if ("APPROVED".equals(farmer.getApprovalStatus())) {
-            throw new ValidationException("Farmer is already approved");
-        }
-
-        farmer.setApprovalStatus("APPROVED");
-        farmer = farmerRepository.save(farmer);
-
-        sendNotificationToUser(farmer.getUser(),
-                "Account Approved 🎉",
-                "Congratulations! Your FarmFresh farmer account has been approved. You can now list your products.");
-
-        log.info("Farmer id={} approved", farmerId);
-        return mapToFarmerSummary(farmer);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  REJECT FARMER
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @Transactional
-    public DashboardStatsResponse.FarmerSummary rejectFarmer(Long farmerId) {
-        Farmer farmer = farmerRepository.findById(farmerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found: " + farmerId));
-
-        if ("REJECTED".equals(farmer.getApprovalStatus())) {
-            throw new ValidationException("Farmer is already rejected");
-        }
-
-        farmer.setApprovalStatus("REJECTED");
-        farmer = farmerRepository.save(farmer);
-
-        sendNotificationToUser(farmer.getUser(),
-                "Application Rejected",
-                "Your FarmFresh farmer application has been reviewed and was not approved at this time. Please contact support for more information.");
-
-        log.info("Farmer id={} rejected", farmerId);
-        return mapToFarmerSummary(farmer);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  ALL ORDERS (Admin view)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @Transactional(readOnly = true)
-    public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAllByOrderByOrderDateDesc()
-                .stream()
-                .map(order -> OrderResponse.builder()
-                        .id(order.getId())
-                        .orderCode(order.getOrderCode())
-                        .orderStatus(order.getOrderStatus())
-                        .paymentStatus(order.getPaymentStatus())
-                        .totalAmount(order.getTotalAmount())
-                        .discountAmount(order.getDiscountAmount())
-                        .couponCode(order.getCoupon() != null ? order.getCoupon().getCode() : null)
-                        .orderDate(order.getOrderDate())
-                        .buyerName(order.getBuyer().getUser().getFullName())
-                        .build())
-                .collect(Collectors.toList());
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  PLATFORM STATISTICS SUMMARY
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @Transactional(readOnly = true)
-    public Map<String, Object> getPlatformStatistics() {
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalBuyers",         buyerRepository.count());
-        stats.put("totalFarmers",        farmerRepository.count());
-        stats.put("totalProducts",       productRepository.count());
-        stats.put("totalOrders",         orderRepository.count());
-        stats.put("totalRevenue",        orderRepository.sumTotalAmountByPaymentStatus("PAID"));
-        stats.put("totalReviews",        reviewRepository.count());
-        stats.put("activeSubscriptions", subscriptionRepository.countByActiveTrue());
-        stats.put("activeAgents",        deliveryAgentRepository.countByActiveTrue());
-        return stats;
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  INTERNAL — Chart builders
-    // ─────────────────────────────────────────────────────────────────────────
-
     private List<Map<String, Object>> buildRevenueByMonth() {
-        // Last 6 months
-        List<Map<String, Object>> result = new ArrayList<>();
-        LocalDate now = LocalDate.now();
-        for (int i = 5; i >= 0; i--) {
-            LocalDate month      = now.minusMonths(i);
-            LocalDateTime start  = month.withDayOfMonth(1).atStartOfDay();
-            LocalDateTime end    = month.withDayOfMonth(month.lengthOfMonth()).atTime(23, 59, 59);
-            BigDecimal rev       = orderRepository.sumTotalAmountByPaymentStatusAndDateBetween("PAID", start, end);
+        LocalDate sixMonthsAgo = LocalDate.now().minusMonths(5).withDayOfMonth(1);
 
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("month",   month.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + month.getYear());
-            entry.put("revenue", rev != null ? rev : BigDecimal.ZERO);
-            result.add(entry);
+        Map<String, BigDecimal> revenueByMonthKey = new LinkedHashMap<>();
+        for (int i = 5; i >= 0; i--) {
+            LocalDate monthStart = LocalDate.now().minusMonths(i).withDayOfMonth(1);
+            revenueByMonthKey.put(monthKey(monthStart), BigDecimal.ZERO);
         }
+
+        orderRepository.findAll().stream()
+                .filter(o -> "PAID".equalsIgnoreCase(o.getPaymentStatus()))
+                .filter(o -> o.getOrderDate() != null)
+                .filter(o -> !o.getOrderDate().toLocalDate().isBefore(sixMonthsAgo))
+                .forEach(o -> {
+                    String key = monthKey(o.getOrderDate().toLocalDate().withDayOfMonth(1));
+                    revenueByMonthKey.merge(key, o.getTotalAmount(), BigDecimal::add);
+                });
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        revenueByMonthKey.forEach((month, revenue) -> {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("month", month);
+            entry.put("revenue", revenue);
+            result.add(entry);
+        });
         return result;
     }
 
     private List<Map<String, Object>> buildOrdersByMonth() {
-        List<Map<String, Object>> result = new ArrayList<>();
-        LocalDate now = LocalDate.now();
-        for (int i = 5; i >= 0; i--) {
-            LocalDate month     = now.minusMonths(i);
-            LocalDateTime start = month.withDayOfMonth(1).atStartOfDay();
-            LocalDateTime end   = month.withDayOfMonth(month.lengthOfMonth()).atTime(23, 59, 59);
-            long count          = orderRepository.countByOrderDateBetween(start, end);
+        LocalDate sixMonthsAgo = LocalDate.now().minusMonths(5).withDayOfMonth(1);
 
+        Map<String, Long> ordersByMonthKey = new LinkedHashMap<>();
+        for (int i = 5; i >= 0; i--) {
+            LocalDate monthStart = LocalDate.now().minusMonths(i).withDayOfMonth(1);
+            ordersByMonthKey.put(monthKey(monthStart), 0L);
+        }
+
+        orderRepository.findAll().stream()
+                .filter(o -> o.getOrderDate() != null)
+                .filter(o -> !o.getOrderDate().toLocalDate().isBefore(sixMonthsAgo))
+                .forEach(o -> {
+                    String key = monthKey(o.getOrderDate().toLocalDate().withDayOfMonth(1));
+                    ordersByMonthKey.merge(key, 1L, Long::sum);
+                });
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        ordersByMonthKey.forEach((month, count) -> {
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("month",  month.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + month.getYear());
+            entry.put("month", month);
             entry.put("orders", count);
             result.add(entry);
-        }
+        });
         return result;
     }
 
+    private String monthKey(LocalDate monthStart) {
+        return monthStart.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + monthStart.getYear();
+    }
+
     private List<Map<String, Object>> buildTopProducts() {
-        return productRepository.findTop5ByOrderBySoldCountDesc()
-                .stream()
-                .map(p -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("name",          p.getName());
-                    m.put("soldCount",     p.getSoldCount());
-                    m.put("averageRating", p.getAverageRating());
-                    return m;
+        Map<Product, BigDecimal> revenueByProduct = new HashMap<>();
+        Map<Product, Long> unitsByProduct = new HashMap<>();
+
+        orderRepository.findAll().forEach(order -> {
+            if (order.getItems() == null) return;
+            order.getItems().forEach(item -> {
+                Product product = item.getProduct();
+                revenueByProduct.merge(product, item.getSubtotal(), BigDecimal::add);
+                unitsByProduct.merge(product, (long) item.getQuantity(), Long::sum);
+            });
+        });
+
+        return revenueByProduct.entrySet().stream()
+                .sorted(Map.Entry.<Product, BigDecimal>comparingByValue().reversed())
+                .limit(5)
+                .map(entry -> {
+                    Product product = entry.getKey();
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("name", product.getName());
+                    row.put("sales", unitsByProduct.getOrDefault(product, 0L));
+                    row.put("revenue", entry.getValue());
+                    return row;
                 })
                 .collect(Collectors.toList());
     }
 
     private List<Map<String, Object>> buildTopFarmers() {
-        return farmerRepository.findTop5ByOrderByAverageRatingDesc()
-                .stream()
-                .map(f -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("name",          f.getUser().getFullName());
-                    m.put("farmName",      f.getFarmName());
-                    m.put("averageRating", f.getAverageRating());
-                    return m;
+        Object Review;
+        Map<Farmer, List<Review>> reviewsByFarmer = reviewRepository.findAll().stream()
+                .collect(Collectors.groupingBy(Review::getFarmer));
+
+        Map<Farmer, BigDecimal> revenueByFarmer = new HashMap<>();
+        orderRepository.findAll().forEach(order -> {
+            if (order.getItems() == null) return;
+            order.getItems().forEach(item -> {
+                Farmer farmer = item.getProduct().getFarmer();
+                revenueByFarmer.merge(farmer, item.getSubtotal(), BigDecimal::add);
+            });
+        });
+
+        return reviewsByFarmer.entrySet().stream()
+                .map(entry -> {
+                    Farmer farmer = entry.getKey();
+                    double avgRating = entry.getValue().stream()
+                            .mapToInt(Review::getRating)
+                            .average()
+                            .orElse(0.0);
+
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("name", farmer.getFarmName());
+                    row.put("rating", Math.round(avgRating * 10.0) / 10.0);
+                    row.put("totalSales", revenueByFarmer.getOrDefault(farmer, BigDecimal.ZERO));
+                    return row;
                 })
+                .sorted((a, b) -> Double.compare((double) b.get("rating"), (double) a.get("rating")))
+                .limit(5)
                 .collect(Collectors.toList());
     }
 
-    private void sendNotificationToUser(User user, String title, String message) {
-        Notification notification = Notification.builder()
-                .user(user)
-                .title(title)
-                .message(message)
-                .read(false)
-                .build();
-        notificationRepository.save(notification);
+    // ===========================================================
+    // Pending Farmers
+    // ===========================================================
+
+    @Transactional(readOnly = true)
+    public List<DashboardStatsResponse.FarmerSummary> getPendingFarmers() {
+        return farmerRepository.findByApproved(false)
+                .stream()
+                .map(this::mapToFarmerSummary)
+                .collect(Collectors.toList());
     }
 
-    private DashboardStatsResponse.FarmerSummary mapToFarmerSummary(Farmer f) {
+    private DashboardStatsResponse.FarmerSummary mapToFarmerSummary(Farmer farmer) {
+        User user = farmer.getUser();
+
+        String location = String.join(", ",
+                Optional.ofNullable(farmer.getVillage()).orElse(""),
+                Optional.ofNullable(farmer.getDistrict()).orElse(""),
+                Optional.ofNullable(farmer.getState()).orElse("")
+        ).replaceAll("(, )+", ", ").replaceAll("^, |, $", "");
+
         return DashboardStatsResponse.FarmerSummary.builder()
-                .farmerId(f.getId())
-                .farmerName(f.getUser().getFullName())
-                .email(f.getUser().getEmail())
-                .phone(f.getUser().getPhone())
-                .farmName(f.getFarmName())
-                .farmLocation(f.getFarmLocation())
-                .approvalStatus(f.getApprovalStatus())
-                .registeredDate(f.getUser().getCreatedAt() != null
-                        ? f.getUser().getCreatedAt().toString() : "")
+                .farmerId(farmer.getId())
+                .farmerName(user != null ? user.getFullName() : null)
+                .email(user != null ? user.getEmail() : null)
+                .phone(user != null ? user.getPhone() : null)
+                .farmName(farmer.getFarmName())
+                .farmLocation(location)
+                .approvalStatus(farmer.isApproved() ? "APPROVED" : "PENDING")
+                .registeredDate(farmer.getCreatedAt() != null
+                        ? farmer.getCreatedAt().toLocalDate().toString()
+                        : null)
                 .build();
     }
 }

@@ -2,13 +2,11 @@ package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.entity.User;
 import com.example.freshfarm3.repository.UserRepository;
+import com.example.freshfarm3.security.AppUserDetails;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,14 +23,6 @@ public class UserDetailsService implements org.springframework.security.core.use
                         "User not found with email: " + email
                 ));
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPassword(),
-                user.isActive(),
-                true,
-                true,
-                true,
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-        );
+        return new AppUserDetails(user);
     }
 }

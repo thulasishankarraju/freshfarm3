@@ -1,6 +1,6 @@
 package com.example.freshfarm3.entity;
 
-import com.freshfarm3.enums.ProductGrade;
+import com.example.freshfarm3.enums.ProductGrade;
 import jakarta.persistence.*;
 import lombok.*;
 

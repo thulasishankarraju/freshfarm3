@@ -5,6 +5,7 @@ import com.example.freshfarm3.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -23,4 +24,11 @@ public interface FarmerRepository extends JpaRepository<Farmer, Long> {
      * Check if a Farmer profile exists for a given User.
      */
     boolean existsByUser(User user);
+
+    // ── Admin dashboard / approval workflow ──────────────────────
+    long countByApproved(boolean approved);
+
+    List<Farmer> findByApproved(boolean approved);
+
+    Optional<Farmer> findByUser_Email(String farmerEmail);
 }

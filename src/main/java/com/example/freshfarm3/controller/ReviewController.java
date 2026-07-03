@@ -2,7 +2,7 @@ package com.example.freshfarm3.controller;
 
 import com.example.freshfarm3.dto.request.ReviewRequest;
 import com.example.freshfarm3.dto.response.ReviewResponse;
-import com.example.freshfarm3.security.JwtUtil;
+import com.example.freshfarm3.security.AppUserDetails;
 import com.example.freshfarm3.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,6 @@ import java.util.List;
 public class ReviewController {
 
     private final ReviewService reviewService;
-    private final JwtUtil jwtUtil;
 
     /**
      * POST /api/reviews
@@ -31,9 +31,9 @@ public class ReviewController {
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<ReviewResponse> createReview(
             @Valid @RequestBody ReviewRequest request,
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("POST /api/reviews — buyerUserId={}", buyerUserId);
         ReviewResponse response = reviewService.createReview(request, buyerUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -76,17 +76,10 @@ public class ReviewController {
     @GetMapping("/my-reviews")
     @PreAuthorize("hasRole('BUYER')")
     public ResponseEntity<List<ReviewResponse>> getMyReviews(
-            @RequestHeader("Authorization") String authHeader) {
+            @AuthenticationPrincipal AppUserDetails userDetails) {
 
-        Long buyerUserId = extractUserId(authHeader);
+        Long buyerUserId = userDetails.getUserId();
         log.info("GET /api/reviews/my-reviews — buyerUserId={}", buyerUserId);
         return ResponseEntity.ok(reviewService.getMyReviews(buyerUserId));
-    }
-
-    // ─── Helper ───────────────────────────────────────────────────────────────
-
-    private Long extractUserId(String authHeader) {
-        String token = authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader;
-        return jwtUtil.extractUserId(token);
     }
 }
