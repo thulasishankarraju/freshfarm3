@@ -49,7 +49,7 @@ public class SubscriptionService {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + request.getProductId()));
 
-        if (!product.isAvailable()) {
+        if (!Boolean.TRUE.equals(product.getIsAvailable())) {
             throw new ValidationException("Product is not available for subscription");
         }
 
@@ -202,6 +202,7 @@ public class SubscriptionService {
             case WEEKLY  -> from.plusWeeks(1);
             case MONTHLY -> from.plusMonths(1);
         };
+    }
 
     private Subscription getValidatedSubscription(Long subscriptionId, Long buyerUserId) {
         Buyer buyer = buyerRepository.findByUserId(buyerUserId)
@@ -215,7 +216,7 @@ public class SubscriptionService {
         }
         if (!subscription.isActive()) {
             throw new ValidationException("Subscription is already cancelled");
-        }    }
+        }
 
         return subscription;
     }
@@ -225,14 +226,14 @@ public class SubscriptionService {
                 .user(user)
                 .title(title)
                 .message(message)
-                .read(false)
+                .isRead(false)
                 .build();
         notificationRepository.save(notification);
     }
 
     private SubscriptionResponse mapToResponse(Subscription s) {
-        String imageUrl = (s.getProduct().getProductImages() != null && !s.getProduct().getProductImages().isEmpty())
-                ? s.getProduct().getProductImages().get(0).getImageUrl()
+        String imageUrl = (s.getProduct().getImages() != null && !s.getProduct().getImages().isEmpty())
+                ? s.getProduct().getImages().get(0).getImageUrl()
                 : null;
 
         return SubscriptionResponse.builder()

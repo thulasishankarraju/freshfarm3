@@ -29,6 +29,7 @@ public class CartResponse {
         private BigDecimal subtotal;
         private Integer availableStock;
         private Boolean isAvailable;
+        private BigDecimal prise;
     }
 
 }

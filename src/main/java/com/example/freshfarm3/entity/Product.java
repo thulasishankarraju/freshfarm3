@@ -70,6 +70,16 @@ public class Product extends BaseEntity {
     @Builder.Default
     private List<ProductImage> images = new ArrayList<>();
 
+    // ── Reviews: aggregate rating fields ────────────────────────
+    @Column
+    @Builder.Default
+    private Double averageRating = 0.0;
+
+    @Column
+    @Builder.Default
+    private Integer reviewCount = 0;
+    // ────────────────────────────────────────────────────────────
+
     // ── Sprint 3: Stock management helpers ──────────────────────
     /**
      * Returns true if the requested quantity can be fulfilled.

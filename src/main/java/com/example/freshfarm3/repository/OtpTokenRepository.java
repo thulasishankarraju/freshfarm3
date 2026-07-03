@@ -1,27 +1,22 @@
 package com.example.freshfarm3.repository;
 
-import com.farmfresh3.entity.OtpToken;
-import com.farmfresh3.entity.OtpToken.OtpChannel;
-import com.farmfresh3.entity.OtpToken.OtpPurpose;
+import com.example.freshfarm3.entity.OtpToken;
+import com.example.freshfarm3.entity.OtpToken.OtpPurpose;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
+@Repository
 public interface OtpTokenRepository extends JpaRepository<OtpToken, Long> {
 
-    // Find the latest unused OTP for this recipient + purpose
+    // Used when generating a new OTP — clears out any stale/unused ones first
+    void deleteAllByRecipientAndPurpose(String recipient, OtpPurpose purpose);
+
+    // Used during verification — grabs the most recent unused OTP for this recipient+purpose
     Optional<OtpToken> findTopByRecipientAndPurposeAndUsedFalseOrderByIdDesc(
             String recipient, OtpPurpose purpose);
 
-    // Delete all old OTPs for a recipient before issuing a new one
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM OtpToken o WHERE o.recipient = :recipient AND o.purpose = :purpose")
-    void deleteAllByRecipientAndPurpose(String recipient, OtpPurpose purpose);
-
-    // Check if a verified (used=true) OTP exists — used to confirm registration completed
+    // Used to confirm OTP was verified before allowing registration/reset to proceed
     boolean existsByRecipientAndPurposeAndUsedTrue(String recipient, OtpPurpose purpose);
 }

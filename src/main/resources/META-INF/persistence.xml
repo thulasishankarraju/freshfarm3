@@ -1,0 +1,20 @@
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+                                  https://jakarta.ee/xml/ns/persistence/persistence_3_1.xsd"
+             version="3.1">
+    <persistence-unit name="freshfarm3PU">
+        <class>com.example.freshfarm3.entity.BaseEntity</class>
+        <class>com.example.freshfarm3.entity.Address</class>
+        <class>com.example.freshfarm3.entity.Buyer</class>
+        <class>com.example.freshfarm3.entity.Cart</class>
+        <class>com.example.freshfarm3.entity.CartItem</class>
+        <class>com.example.freshfarm3.entity.Category</class>
+        <class>com.example.freshfarm3.entity.Coupon</class>
+        <class>com.example.freshfarm3.entity.Farmer</class>
+        <class>com.example.freshfarm3.entity.Notification</class>
+        <class>com.example.freshfarm3.entity.Order</class>
+        <!-- add any remaining entity classes from your entity package -->
+        <exclude-unlisted-classes>false</exclude-unlisted-classes>
+    </persistence-unit>
+</persistence>

@@ -25,15 +25,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CartService {
 
-    private final CartRepository     cartRepository;
+    private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final ProductRepository  productRepository;
-    private final BuyerRepository    buyerRepository;
+    private final ProductRepository productRepository;
+    private final BuyerRepository buyerRepository;
 
     // ── ADD TO CART ──────────────────────────────────────────────
     @Transactional
     public CartResponse addToCart(String buyerEmail, CartRequest req) {
-        Buyer buyer  = getBuyer(buyerEmail);
+        Buyer buyer = getBuyer(buyerEmail);
         Product product = getProduct(req.getProductId());
 
         if (!product.hasStock(req.getQuantity())) {
@@ -129,7 +129,7 @@ public class CartService {
     @Transactional(readOnly = true)
     public CartResponse getCart(String buyerEmail) {
         Buyer buyer = getBuyer(buyerEmail);
-        Cart cart   = getOrCreateCart(buyer);
+        Cart cart = getOrCreateCart(buyer);
         return buildCartResponse(cart);
     }
 
@@ -177,7 +177,7 @@ public class CartService {
                             .cartItemId(item.getId())
                             .productId(p.getId())
                             .productName(p.getName())
-                            .price(item.getPrice())
+                            .prise(item.getPrice())
                             .quantity(item.getQuantity())
                             .subtotal(item.getSubtotal())
                             .build();
@@ -194,13 +194,5 @@ public class CartService {
                 .totalAmount(total)
                 .build();
     }
-<<<<<<< HEAD
+
 }
-=======
-
-
-                    return null;
-    }
-        return null;
-    }
->>>>>>> 9fd0a7bf4402f08b8025c3f13c34dfb66b359e96

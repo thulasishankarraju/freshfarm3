@@ -51,4 +51,12 @@ public class Order extends BaseEntity {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    /**
+     * Alias for `items` — used by ReviewService and any code expecting
+     * the more descriptive "orderItems" accessor name.
+     */
+    public List<OrderItem> getOrderItems() {
+        return this.items;
+    }
 }

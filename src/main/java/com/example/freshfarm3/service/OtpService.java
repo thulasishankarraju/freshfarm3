@@ -1,9 +1,9 @@
 package com.example.freshfarm3.service;
 
-import com.freshfarm3.entity.OtpToken;
-import com.freshfarm3.entity.OtpToken.OtpChannel;
-import com.freshfarm3.entity.OtpToken.OtpPurpose;
-import com.freshfarm3.repository.OtpTokenRepository;
+import com.example.freshfarm3.entity.OtpToken;
+import com.example.freshfarm3.entity.OtpToken.OtpChannel;
+import com.example.freshfarm3.entity.OtpToken.OtpPurpose;
+import com.example.freshfarm3.repository.OtpTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
