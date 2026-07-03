@@ -202,7 +202,6 @@ public class SubscriptionService {
             case WEEKLY  -> from.plusWeeks(1);
             case MONTHLY -> from.plusMonths(1);
         };
-    }
 
     private Subscription getValidatedSubscription(Long subscriptionId, Long buyerUserId) {
         Buyer buyer = buyerRepository.findByUserId(buyerUserId)
@@ -216,7 +215,8 @@ public class SubscriptionService {
         }
         if (!subscription.isActive()) {
             throw new ValidationException("Subscription is already cancelled");
-        }
+        }    }
+
         return subscription;
     }
 

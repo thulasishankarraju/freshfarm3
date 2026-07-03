@@ -34,4 +34,6 @@ public interface FarmerRepository extends JpaRepository<Farmer, Long> {
     Optional<Farmer> findByUser_Email(String farmerEmail);
 
     Arrays findByApprovalStatus(String pending);
+
+    Optional<Object> findByUserEmail(String farmerEmail);
 }

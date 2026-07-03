@@ -3,7 +3,6 @@ package com.example.freshfarm3.repository;
 import com.example.freshfarm3.entity.Category;
 import com.example.freshfarm3.entity.Farmer;
 import com.example.freshfarm3.entity.Product;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
@@ -27,14 +27,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // ── Browse by category ────────────────────────────────────
     List<Product> findByCategoryAndStatus(Category category, Product.ProductStatus status);
 
-    Page<Product> findByCategory_IdAndStatus(
-            Long categoryId, Product.ProductStatus status, Pageable pageable);
-
-    Page<Product> findByStatus(Product.ProductStatus status, Pageable pageable);
+    List<Product> findByStatus(Product.ProductStatus status);
 
     // ── Search by name ────────────────────────────────────────
-    Page<Product> findByNameContainingIgnoreCaseAndStatus(
-            String name, Product.ProductStatus status, Pageable pageable);
+    List<Product> findByNameContainingIgnoreCaseAndStatus(
+            String name, Product.ProductStatus status);
 
     // ── Keyword search across name + description ──────────────
     @Query("""
@@ -62,5 +59,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("keyword")  String keyword,
             @Param("status")   Product.ProductStatus status);
 
-    long countByIsAvailableTrue();
+
+
+    long countByAvailableTrue();
+
+    double findAverageProductRating();
+
+    <T> Optional<T> findByCategory_IdAndStatus(Long categoryId, Product.ProductStatus productStatus, Pageable pageable);
 }

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -138,7 +139,7 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProductResponse> filterByCategory(Long categoryId, Pageable pageable) {
+    public Optional filterByCategory(Long categoryId, Pageable pageable) {
         return productRepository
                 .findByCategory_IdAndStatus(categoryId, Product.ProductStatus.ACTIVE, pageable)
                 .map(this::mapToResponse);
