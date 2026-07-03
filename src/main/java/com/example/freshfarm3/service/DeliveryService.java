@@ -270,7 +270,7 @@ public class DeliveryService {
                 "Hi " + agent.getUser().getFullName()+ ",\n\n" +
                         "You have a new delivery assignment.\n" +
                         "Order: #" + order.getOrderNumber() + "\n" +
-                        "Deliver to: " + order.getDeliveryAddress().getStreet() + ", " +
+                        "Deliver to: " + order.getDeliveryAddress().getAddressLine() + ", " +
                         order.getDeliveryAddress().getCity() + "\n" +
                         "Buyer OTP: " + otp + " (buyer will share this with you at delivery)\n\n" +
                         "Team FarmFresh"

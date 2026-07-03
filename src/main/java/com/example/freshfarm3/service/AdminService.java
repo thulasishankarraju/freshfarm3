@@ -212,7 +212,7 @@ public class AdminService {
         return reviewsByFarmer.entrySet().stream()
                 .map(entry -> {
                     Farmer farmer = entry.getKey();
-                    double avgRating = entry.getValue().stream()
+                    double avgRating = entry.getValue().stream(
                             .mapToInt(Review::getRating)
                             .average()
                             .orElse(0.0);

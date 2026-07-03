@@ -29,4 +29,6 @@ public interface BuyerRepository extends JpaRepository<Buyer, Long> {
     boolean existsByUser(User user);
 
     Optional<Buyer> findByUserEmail(String email);
+
+    Optional<Object> findByUserId(Long buyerUserId);
 }

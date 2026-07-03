@@ -173,4 +173,7 @@ public class CartService {
         List<CartResponse.CartItemResponseDto> itemDtos = items.stream()
                 .map(item -> {
                     Product p = item.getProduct();
+                }
+    }
+
 
