@@ -6,6 +6,8 @@ import com.example.freshfarm3.enums.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +22,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // Farmer: find all orders that include their products
     List<Order> findByItems_Product_Farmer_User_Email(String farmerEmail);
+    long countByOrderDateBetween(LocalDateTime start, LocalDateTime end);
+
+    long countByOrderStatus(OrderStatus orderStatus);
+
+    BigDecimal sumTotalAmountByPaymentStatus(String paid);
+
+    BigDecimal sumTotalAmountByPaymentStatusAndDateBetween(String paid, LocalDateTime startOfDay, LocalDateTime now);
 }

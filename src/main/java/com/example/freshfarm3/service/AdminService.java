@@ -196,7 +196,7 @@ public class AdminService {
     }
 
     private List<Map<String, Object>> buildTopFarmers() {
-        Object Review;
+        Object Review = null;
         Map<Farmer, List<Review>> reviewsByFarmer = reviewRepository.findAll().stream()
                 .collect(Collectors.groupingBy(Review::getFarmer));
 

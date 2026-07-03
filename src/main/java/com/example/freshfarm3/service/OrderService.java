@@ -246,7 +246,7 @@ public class OrderService {
                     farmerNotif.setUser(farmer.getUser());
                     farmerNotif.setTitle("New Order Received! 🧑‍🌾");
                     farmerNotif.setMessage("You have a new order #" + order.getOrderNumber() +
-                            " from " + buyer.getUser().getName() + ". Please confirm it.");
+                            " from " + buyer.getUser().getFullName() + ". Please confirm it.");
                     farmerNotif.setIsRead(false);
                     notificationRepository.save(farmerNotif);
                 });
@@ -266,7 +266,7 @@ public class OrderService {
                         .build())
                 .collect(Collectors.toList());
 
-        String addressStr = address.getStreet() + ", " + address.getCity() +
+        String addressStr = address.getAddressLine() + ", " + address.getCity() +
                 ", " + address.getState() + " - " + address.getPincode();
 
         return CheckoutResponse.builder()

@@ -11,6 +11,7 @@ import com.example.freshfarm3.entity.Farmer;
 import com.example.freshfarm3.entity.User;
 import com.example.freshfarm3.enums.Role;
 import com.example.freshfarm3.repository.BuyerRepository;
+import com.example.freshfarm3.repository.DeliveryAgentRepository;
 import com.example.freshfarm3.repository.FarmerRepository;
 import com.example.freshfarm3.repository.UserRepository;
 import com.example.freshfarm3.security.JwtUtil;
@@ -39,7 +40,7 @@ public class AuthService {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
         User user = User.builder()
-                .name(req.getName())
+                .fullName(req.getFullName())
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .phone(req.getPhone())
@@ -53,7 +54,7 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
         log.info("Buyer registered: {}", saved.getEmail());
-        return new AuthResponse(token, saved.getRole().name(), saved.getName(), saved.getId());
+        return new AuthResponse(token, saved.getRole().name(), saved.getFullName(), saved.getId());
     }
 
     // ── FARMER REGISTER (Sprint 1 — unchanged) ─────────────────
@@ -63,7 +64,7 @@ public class AuthService {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
         User user = User.builder()
-                .name(req.getName())
+                .fullName(req.getFullName())
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .phone(req.getPhone())
@@ -77,7 +78,7 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
         log.info("Farmer registered: {}", saved.getEmail());
-        return new AuthResponse(token, saved.getRole().name(), saved.getName(), saved.getId());
+        return new AuthResponse(token, saved.getRole().name(), saved.getFullName(), saved.getId());
     }
 
     // ── BUYER / FARMER LOGIN (Sprint 1 — unchanged) ─────────────
@@ -92,7 +93,7 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         log.info("User logged in: {} as {}", user.getEmail(), user.getRole());
-        return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId());
+        return new AuthResponse(token, user.getRole().name(), user.getFullName(), user.getId());
     }
 
     // ── AGENT REGISTER (Sprint 4 — NEW) ────────────────────────
@@ -103,7 +104,7 @@ public class AuthService {
         }
 
         User user = User.builder()
-                .name(req.getName())
+                .fullName(req.getName())
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .phone(req.getPhone())
@@ -122,7 +123,7 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
         log.info("Delivery agent registered: {}", saved.getEmail());
-        return new AuthResponse(token, saved.getRole().name(), saved.getName(), saved.getId());
+        return new AuthResponse(token, saved.getRole().name(), saved.getFullName(), saved.getId());
     }
 
     // ── AGENT LOGIN (Sprint 4 — NEW) ────────────────────────────
@@ -141,6 +142,6 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         log.info("Agent logged in: {}", user.getEmail());
-        return new AuthResponse(token, user.getRole().name(), user.getName(), user.getId());
+        return new AuthResponse(token, user.getRole().name(), user.getFullName(), user.getId());
     }
 }

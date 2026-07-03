@@ -6,5 +6,5 @@ public enum OrderStatus {
     PROCESSING,    // Being packed / prepared
     SHIPPED,       // Handed to delivery agent
     DELIVERED,     // Delivered and OTP verified
-    CANCELLED      // Cancelled by buyer or system
+    OUT_FOR_DELIVERY, CANCELLED      // Cancelled by buyer or system
 }

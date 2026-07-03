@@ -18,4 +18,6 @@ public interface DeliveryAgentRepository extends JpaRepository<DeliveryAgent, Lo
     List<DeliveryAgent> findByIsAvailableTrue();
 
     boolean existsByUser_Email(String email);
+
+    long countByActiveTrue();
 }

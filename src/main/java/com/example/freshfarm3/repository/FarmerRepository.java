@@ -5,6 +5,7 @@ import com.example.freshfarm3.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,4 +32,6 @@ public interface FarmerRepository extends JpaRepository<Farmer, Long> {
     List<Farmer> findByApproved(boolean approved);
 
     Optional<Farmer> findByUser_Email(String farmerEmail);
+
+    Arrays findByApprovalStatus(String pending);
 }

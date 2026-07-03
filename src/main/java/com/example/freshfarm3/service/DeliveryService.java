@@ -226,7 +226,7 @@ public class DeliveryService {
     private void notifyBuyer(Order order, DeliveryAgent agent, String otp) {
         String buyerEmail = order.getBuyer().getUser().getEmail();
         String buyerPhone = order.getBuyer().getUser().getPhone();
-        String agentName  = agent.getUser().getName();
+        String agentName  = agent.getUser().getFullName();
 
         saveNotification(
                 order.getBuyer().getUser(),
@@ -238,7 +238,7 @@ public class DeliveryService {
         emailService.send(
                 buyerEmail,
                 "FarmFresh — Your Delivery Agent Is Assigned",
-                "Hi " + order.getBuyer().getUser().getName() + ",\n\n" +
+                "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
                         "Your order #" + order.getOrderNumber() + " has been assigned to " +
                         agentName + " (" + agent.getVehicleNumber() + ").\n\n" +
                         "Your delivery OTP is: " + otp + "\n" +
@@ -267,7 +267,7 @@ public class DeliveryService {
         emailService.send(
                 agentEmail,
                 "FarmFresh — New Delivery Assignment",
-                "Hi " + agent.getUser().getName() + ",\n\n" +
+                "Hi " + agent.getUser().getFullName()+ ",\n\n" +
                         "You have a new delivery assignment.\n" +
                         "Order: #" + order.getOrderNumber() + "\n" +
                         "Deliver to: " + order.getDeliveryAddress().getStreet() + ", " +
@@ -293,7 +293,7 @@ public class DeliveryService {
         emailService.send(
                 order.getBuyer().getUser().getEmail(),
                 "FarmFresh — Order Delivered! 🎉",
-                "Hi " + order.getBuyer().getUser().getName() + ",\n\n" +
+                "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
                         "Your order #" + order.getOrderNumber() + " has been delivered.\n" +
                         "Thank you for shopping with FarmFresh! 🌿\nTeam FarmFresh"
         );
@@ -324,7 +324,7 @@ public class DeliveryService {
                 .orderId(d.getOrder().getId())
                 .orderNumber(d.getOrder().getOrderNumber())
                 .agentId(agent.getId())
-                .agentName(agent.getUser().getName())
+                .agentName(agent.getUser().getFullName())
                 .agentPhone(agent.getPhone())
                 .vehicleNumber(agent.getVehicleNumber())
                 .vehicleType(agent.getVehicleType())
