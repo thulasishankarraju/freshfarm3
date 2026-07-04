@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasRole('BUYER')")
 public class CartController {
 
-    private final CartService cartService;
+    public final CartService cartService;
 
     // GET /api/cart
     @GetMapping

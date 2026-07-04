@@ -52,7 +52,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             """)
     List<Product> searchByKeyword(
             @Param("keyword") String keyword,
-            @Param("status")  Product.ProductStatus status);
+            @Param("status") Product.ProductStatus status);
 
     // ── Filter by category + optional keyword ─────────────────
     @Query("""
@@ -65,11 +65,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             """)
     List<Product> searchByCategoryAndKeyword(
             @Param("category") Category category,
-            @Param("keyword")  String keyword,
-            @Param("status")   Product.ProductStatus status);
+            @Param("keyword") String keyword,
+            @Param("status") Product.ProductStatus status);
 
     long countByIsAvailableTrue();
 
-    @Query("SELECT COALESCE(AVG(p.averageRating), 0.0) FROM Product p")
-    double findAverageProductRating();
+    @Query("SELECT COALESCE(AVG(p.averageRating), 0) FROM Product p")
+    Double findAverageProductRating();
 }
