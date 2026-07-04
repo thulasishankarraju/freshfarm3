@@ -266,12 +266,6 @@ public class AdminService {
                 .build();
     }
 
-<<<<<<< HEAD
-=======
-    // ===========================================================
-    // Farmer Approval / Rejection
-    // ===========================================================
-
     @Transactional
     public DashboardStatsResponse.FarmerSummary approveFarmer(Long farmerId) {
         Farmer farmer = farmerRepository.findById(farmerId)
@@ -363,5 +357,4 @@ public class AdminService {
         stats.put("activeSubscriptions", activeSubscriptions);
         return stats;
     }
->>>>>>> 7005ff5 (updated code)
 }

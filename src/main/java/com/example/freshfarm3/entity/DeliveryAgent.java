@@ -2,6 +2,7 @@ package com.example.freshfarm3.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "delivery_agents")
@@ -30,8 +31,8 @@ public class DeliveryAgent extends BaseEntity {
     private Boolean isAvailable = true;
 
     @Column(precision = 10, scale = 7)
-    private Double currentLatitude;
+    private BigDecimal currentLatitude;
 
     @Column(precision = 10, scale = 7)
-    private Double currentLongitude;
+    private BigDecimal currentLongitude;
 }

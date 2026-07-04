@@ -68,7 +68,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("keyword")  String keyword,
             @Param("status")   Product.ProductStatus status);
 
-    long countByAvailableTrue();
+    long countByIsAvailableTrue();
 
     double findAverageProductRating();
 }
