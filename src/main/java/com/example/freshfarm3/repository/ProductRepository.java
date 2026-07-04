@@ -70,5 +70,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     long countByIsAvailableTrue();
 
+    @Query("SELECT COALESCE(AVG(p.averageRating), 0.0) FROM Product p")
     double findAverageProductRating();
 }
