@@ -2,7 +2,10 @@ package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.dto.request.CartRequest;
 import com.example.freshfarm3.dto.response.CartResponse;
-import com.example.freshfarm3.entity.*;
+import com.example.freshfarm3.entity.Buyer;
+import com.example.freshfarm3.entity.Cart;
+import com.example.freshfarm3.entity.CartItem;
+import com.example.freshfarm3.entity.Product;
 import com.example.freshfarm3.repository.BuyerRepository;
 import com.example.freshfarm3.repository.CartItemRepository;
 import com.example.freshfarm3.repository.CartRepository;
@@ -30,34 +33,32 @@ public class CartService {
     // ── ADD TO CART ──────────────────────────────────────────────
     @Transactional
     public CartResponse addToCart(String buyerEmail, CartRequest req) {
-<<<<<<< HEAD
-=======
-
->>>>>>> a84900912896d2c29e358ecf4385389d7f3f8616
         Buyer buyer = getBuyer(buyerEmail);
         Product product = getProduct(req.getProductId());
 
         if (!product.hasStock(req.getQuantity())) {
-            throw new RuntimeException("Insufficient stock for " + product.getName());
+            throw new RuntimeException(
+                    "Insufficient stock for '" + product.getName() +
+                            "'. Available: " + product.getStockQuantity()
+            );
         }
 
         Cart cart = getOrCreateCart(buyer);
 
-        Optional<CartItem> existingItem =
-                cartItemRepository.findByCartAndProduct(cart, product);
+        Optional<CartItem> existingItem = cartItemRepository
+                .findByCartAndProduct(cart, product);
 
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
             int newQty = item.getQuantity() + req.getQuantity();
-
             if (!product.hasStock(newQty)) {
-                throw new RuntimeException("Not enough stock available");
+                throw new RuntimeException(
+                        "Cannot add more. Only " + product.getStockQuantity() +
+                                " units available."
+                );
             }
-
             item.setQuantity(newQty);
-            item.setSubtotal(product.getPrice()
-                    .multiply(BigDecimal.valueOf(newQty)));
-
+            item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
             cartItemRepository.save(item);
         } else {
             CartItem newItem = new CartItem();
@@ -65,22 +66,20 @@ public class CartService {
             newItem.setProduct(product);
             newItem.setQuantity(req.getQuantity());
             newItem.setPrice(product.getPrice());
-            newItem.setSubtotal(product.getPrice()
-                    .multiply(BigDecimal.valueOf(req.getQuantity())));
-
+            newItem.setSubtotal(
+                    product.getPrice().multiply(BigDecimal.valueOf(req.getQuantity()))
+            );
             cartItemRepository.save(newItem);
         }
 
+        log.info("Item added to cart: buyerEmail={}, productId={}", buyerEmail, req.getProductId());
         return buildCartResponse(cart);
     }
 
-    // ── UPDATE QUANTITY ─────────────────────────────────────────
+    // ── UPDATE QUANTITY ───────────────────────────────────────────
     @Transactional
     public CartResponse updateQuantity(String buyerEmail, Long cartItemId, int newQty) {
-
-        if (newQty < 1) {
-            throw new RuntimeException("Quantity must be at least 1");
-        }
+        if (newQty < 1) throw new RuntimeException("Quantity must be at least 1");
 
         CartItem item = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new RuntimeException("Cart item not found"));
@@ -88,105 +87,86 @@ public class CartService {
         validateCartOwnership(item, buyerEmail);
 
         Product product = item.getProduct();
-
         if (!product.hasStock(newQty)) {
-            throw new RuntimeException("Only " + product.getStockQuantity() + " available");
+            throw new RuntimeException(
+                    "Only " + product.getStockQuantity() + " units available."
+            );
         }
 
         item.setQuantity(newQty);
-        item.setSubtotal(product.getPrice()
-                .multiply(BigDecimal.valueOf(newQty)));
-
+        item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
         cartItemRepository.save(item);
 
+        log.info("Cart item updated: cartItemId={}, newQty={}", cartItemId, newQty);
         return buildCartResponse(item.getCart());
     }
 
-    // ── REMOVE ITEM ─────────────────────────────────────────────
+    // ── REMOVE ITEM ───────────────────────────────────────────────
     @Transactional
     public CartResponse removeItem(String buyerEmail, Long cartItemId) {
-
         CartItem item = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new RuntimeException("Cart item not found"));
 
         validateCartOwnership(item, buyerEmail);
-
         Cart cart = item.getCart();
         cartItemRepository.delete(item);
 
+        log.info("Cart item removed: cartItemId={}", cartItemId);
         return buildCartResponse(cart);
     }
 
-    // ── CLEAR CART ───────────────────────────────────────────────
+    // ── CLEAR CART ────────────────────────────────────────────────
     @Transactional
     public void clearCart(String buyerEmail) {
-
         Buyer buyer = getBuyer(buyerEmail);
-
         cartRepository.findByBuyer(buyer).ifPresent(cart -> {
             cartItemRepository.deleteAll(cart.getItems());
+            log.info("Cart cleared for buyer: {}", buyerEmail);
         });
     }
 
-    // ── VIEW CART ────────────────────────────────────────────────
+    // ── VIEW CART ─────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public CartResponse getCart(String buyerEmail) {
-
         Buyer buyer = getBuyer(buyerEmail);
         Cart cart = getOrCreateCart(buyer);
-<<<<<<< HEAD
-=======
-
->>>>>>> a84900912896d2c29e358ecf4385389d7f3f8616
         return buildCartResponse(cart);
     }
 
-    // ── INTERNAL CART ENTITY ─────────────────────────────────────
+    // ── INTERNAL: called by OrderService ─────────────────────────
     @Transactional(readOnly = true)
     public Cart getCartEntity(String buyerEmail) {
-
         Buyer buyer = getBuyer(buyerEmail);
-
         return cartRepository.findByBuyer(buyer)
                 .orElseThrow(() -> new RuntimeException("Cart is empty"));
     }
 
-    // ── HELPERS ──────────────────────────────────────────────────
+    // ── HELPERS ───────────────────────────────────────────────────
     private Cart getOrCreateCart(Buyer buyer) {
-
-        return cartRepository.findByBuyer(buyer)
-                .orElseGet(() -> {
-                    Cart cart = new Cart();
-                    cart.setBuyer(buyer);
-                    return cartRepository.save(cart);
-                });
+        return cartRepository.findByBuyer(buyer).orElseGet(() -> {
+            Cart c = new Cart();
+            c.setBuyer(buyer);
+            return cartRepository.save(c);
+        });
     }
 
     private Buyer getBuyer(String email) {
-
-        return buyerRepository.findByUser_Email(email)
+        return buyerRepository.findByUserEmail(email)
                 .orElseThrow(() -> new RuntimeException("Buyer not found"));
     }
 
     private Product getProduct(Long productId) {
-
         return productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+                .orElseThrow(() -> new RuntimeException("Product not found: " + productId));
     }
 
     private void validateCartOwnership(CartItem item, String buyerEmail) {
-
-        String ownerEmail = item.getCart()
-                .getBuyer()
-                .getUser()
-                .getEmail();
-
+        String ownerEmail = item.getCart().getBuyer().getUser().getEmail();
         if (!ownerEmail.equals(buyerEmail)) {
-            throw new RuntimeException("Unauthorized access");
+            throw new RuntimeException("Unauthorized cart access");
         }
     }
 
-    // ── BUILD RESPONSE ───────────────────────────────────────────
     private CartResponse buildCartResponse(Cart cart) {
 
         List<CartItem> items = cartItemRepository.findByCart(cart);
@@ -194,61 +174,43 @@ public class CartService {
         List<CartResponse.CartItemResponseDto> itemDtos = items.stream()
                 .map(item -> {
 
-                    Product p = item.getProduct();
-<<<<<<< HEAD
+                    Product product = item.getProduct();
+
+                    String imageUrl = null;
+
+                    if (product.getImages() != null && !product.getImages().isEmpty()) {
+                        imageUrl = product.getImages().get(0).getImageUrl();
+                    }
+
                     return CartResponse.CartItemResponseDto.builder()
                             .cartItemId(item.getId())
-                            .productId(p.getId())
-                            .productName(p.getName())
-                            .prise(item.getPrice())
+                            .productId(product.getId())
+                            .productName(product.getName())
+                            .productUnit(product.getUnit())
+                            .imageUrl(imageUrl)
+                            .pricePerUnit(item.getPrice())
                             .quantity(item.getQuantity())
                             .subtotal(item.getSubtotal())
+                            .availableStock(product.getStockQuantity())
+                            .isAvailable(product.getIsAvailable())
                             .build();
                 })
                 .collect(Collectors.toList());
 
-        BigDecimal total = itemDtos.stream()
+        BigDecimal totalAmount = itemDtos.stream()
                 .map(CartResponse.CartItemResponseDto::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int totalItems = itemDtos.stream()
+                .mapToInt(CartResponse.CartItemResponseDto::getQuantity)
+                .sum();
 
         return CartResponse.builder()
                 .cartId(cart.getId())
+                .buyerId(cart.getBuyer().getId())
                 .items(itemDtos)
-                .totalAmount(total)
+                .totalAmount(totalAmount)
+                .totalItems(totalItems)
                 .build();
     }
-
 }
-<<<<<<< HEAD
-=======
-=======
-=======
->>>>>>> 66bc340 (Update)
-
-                    return CartResponse.CartItemResponseDto.builder()
-                            .productId(p.getId())
-                            .productName(p.getName())
-                            .quantity(item.getQuantity())
-                            .pricePerUnit(item.getPrice())
-                            .subtotal(item.getSubtotal())
-                            .build();
-                })
-                .collect(Collectors.toList());
-
-        BigDecimal total = itemDtos.stream()
-                .map(CartResponse.CartItemResponseDto::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return CartResponse.builder()
-                .items(itemDtos)
-                .totalAmount(total)
-                .build();
-    }
-<<<<<<< HEAD
-        return null;
-    }
->>>>>>> 9fd0a7bf4402f08b8025c3f13c34dfb66b359e96
-=======
-}
->>>>>>> 66bc340 (Update)
->>>>>>> a84900912896d2c29e358ecf4385389d7f3f8616

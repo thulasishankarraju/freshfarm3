@@ -3,14 +3,6 @@ package com.example.freshfarm3.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * Farmer — Profile data for users with FARMER role.
- *
- * Maps to: farmers table in MySQL
- *
- * Sprint 1: Basic fields for registration.
- * Sprint 2+: Add product listings, earnings, approval status.
- */
 @Entity
 @Table(name = "farmers")
 @Getter
@@ -20,11 +12,6 @@ import lombok.*;
 @Builder
 public class Farmer extends BaseEntity {
 
-    /**
-     * Each Farmer has exactly one User account (login credentials).
-     * @OneToOne with cascade — if Farmer is deleted, User is NOT deleted
-     *   (we use JoinColumn, not cascade delete)
-     */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
@@ -44,10 +31,6 @@ public class Farmer extends BaseEntity {
     @Column(name = "pincode")
     private String pincode;
 
-    /**
-     * Aadhaar number — stored as string (12 digits + can have spaces/dashes)
-     * In production: encrypt before storing.
-     */
     @Column(name = "aadhaar_number")
     private String aadhaarNumber;
 
@@ -57,14 +40,17 @@ public class Farmer extends BaseEntity {
     @Column(name = "ifsc_code")
     private String ifscCode;
 
-    /**
-     * Admin must approve farmer before they can list products.
-     * Default: false (pending approval)
-     */
     @Builder.Default
     @Column(name = "approved", nullable = false)
     private boolean approved = false;
 
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
+
+    /**
+     * Average rating received from all reviews.
+     */
+    @Builder.Default
+    @Column(name = "average_rating", nullable = false)
+    private Double averageRating = 0.0;
 }
