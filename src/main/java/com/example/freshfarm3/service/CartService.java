@@ -33,6 +33,10 @@ public class CartService {
     // ── ADD TO CART ──────────────────────────────────────────────
     @Transactional
     public CartResponse addToCart(String buyerEmail, CartRequest req) {
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7005ff5 (updated code)
         Buyer buyer = getBuyer(buyerEmail);
         Product product = getProduct(req.getProductId());
 
@@ -174,6 +178,7 @@ public class CartService {
         List<CartResponse.CartItemResponseDto> itemDtos = items.stream()
                 .map(item -> {
 
+<<<<<<< HEAD
                     Product product = item.getProduct();
 
                     String imageUrl = null;
@@ -182,6 +187,9 @@ public class CartService {
                         imageUrl = product.getImages().get(0).getImageUrl();
                     }
 
+=======
+                    Product p = item.getProduct();
+>>>>>>> 7005ff5 (updated code)
                     return CartResponse.CartItemResponseDto.builder()
                             .cartItemId(item.getId())
                             .productId(product.getId())
@@ -213,4 +221,10 @@ public class CartService {
                 .totalItems(totalItems)
                 .build();
     }
+<<<<<<< HEAD
 }
+=======
+
+}
+
+>>>>>>> 7005ff5 (updated code)

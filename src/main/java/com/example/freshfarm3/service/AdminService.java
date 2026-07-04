@@ -1,8 +1,10 @@
 package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.dto.response.DashboardStatsResponse;
+import com.example.freshfarm3.dto.response.OrderResponse;
 import com.example.freshfarm3.entity.*;
 import com.example.freshfarm3.enums.OrderStatus;
+import com.example.freshfarm3.exception.ResourceNotFoundException;
 import com.example.freshfarm3.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -264,4 +266,102 @@ public class AdminService {
                 .build();
     }
 
+<<<<<<< HEAD
+=======
+    // ===========================================================
+    // Farmer Approval / Rejection
+    // ===========================================================
+
+    @Transactional
+    public DashboardStatsResponse.FarmerSummary approveFarmer(Long farmerId) {
+        Farmer farmer = farmerRepository.findById(farmerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found with id: " + farmerId));
+
+        farmer.setApproved(true);
+        Farmer saved = farmerRepository.save(farmer);
+
+        return mapToFarmerSummary(saved);
+    }
+
+    @Transactional
+    public DashboardStatsResponse.FarmerSummary rejectFarmer(Long farmerId) {
+        Farmer farmer = farmerRepository.findById(farmerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found with id: " + farmerId));
+
+        farmer.setApproved(false);
+        Farmer saved = farmerRepository.save(farmer);
+
+        return mapToFarmerSummary(saved);
+    }
+
+    // ===========================================================
+    // Orders
+    // ===========================================================
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> getAllOrders() {
+        return orderRepository.findAll()
+                .stream()
+                .map(this::mapToOrderResponse)
+                .collect(Collectors.toList());
+    }
+
+    private OrderResponse mapToOrderResponse(Order order) {
+        Buyer buyer = order.getBuyer();
+        User buyerUser = buyer != null ? buyer.getUser() : null;
+
+        return OrderResponse.builder()
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getOrderStatus())
+                .paymentStatus(order.getPaymentStatus())
+                .subtotal(order.getSubtotal())
+                .deliveryCharge(order.getDeliveryCharge())
+                .totalAmount(order.getTotalAmount())
+                .orderDate(order.getOrderDate())
+                .buyerId(buyer != null ? buyer.getId() : null)
+                .buyerName(buyerUser != null ? buyerUser.getFullName() : null)
+                .build();
+    }
+
+    // ===========================================================
+    // Platform Statistics
+    // ===========================================================
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPlatformStatistics() {
+        long totalUsers = userRepository.count();
+        long totalBuyers = buyerRepository.count();
+        long totalFarmers = farmerRepository.count();
+        long approvedFarmers = farmerRepository.countByApproved(true);
+        long pendingFarmers = totalFarmers - approvedFarmers;
+
+        long totalProducts = productRepository.count();
+        long totalOrders = orderRepository.count();
+
+        BigDecimal totalRevenue = orderRepository.findAll()
+                .stream()
+                .filter(o -> "PAID".equalsIgnoreCase(o.getPaymentStatus()))
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long activeAgents = deliveryAgentRepository.findByIsAvailableTrue().size();
+        long totalReviews = reviewRepository.count();
+        long activeSubscriptions = subscriptionRepository.count();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("totalUsers", totalUsers);
+        stats.put("totalBuyers", totalBuyers);
+        stats.put("totalFarmers", totalFarmers);
+        stats.put("approvedFarmers", approvedFarmers);
+        stats.put("pendingFarmers", pendingFarmers);
+        stats.put("totalProducts", totalProducts);
+        stats.put("totalOrders", totalOrders);
+        stats.put("totalRevenue", totalRevenue);
+        stats.put("activeDeliveryAgents", activeAgents);
+        stats.put("totalReviews", totalReviews);
+        stats.put("activeSubscriptions", activeSubscriptions);
+        return stats;
+    }
+>>>>>>> 7005ff5 (updated code)
 }
