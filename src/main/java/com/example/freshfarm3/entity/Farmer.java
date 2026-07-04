@@ -49,17 +49,10 @@ public class Farmer extends BaseEntity {
      * Recalculated by ReviewService.updateFarmerRating() whenever
      * a new review is created.
      */
-    @Column(name = "average_rating")
+    @Column(name = "average_rating", nullable = false)
     @Builder.Default
     private Double averageRating = 0.0;
 
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
-
-    /**
-     * Average rating received from all reviews.
-     */
-    @Builder.Default
-    @Column(name = "average_rating", nullable = false)
-    private Double averageRating = 0.0;
 }

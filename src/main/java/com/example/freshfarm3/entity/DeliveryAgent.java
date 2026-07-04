@@ -29,9 +29,9 @@ public class DeliveryAgent extends BaseEntity {
     @Builder.Default
     private Boolean isAvailable = true;
 
-    @Column(precision = 10, scale = 7)
+    @Column
     private Double currentLatitude;
 
-    @Column(precision = 10, scale = 7)
+    @Column
     private Double currentLongitude;
 }
