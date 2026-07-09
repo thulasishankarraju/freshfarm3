@@ -33,7 +33,7 @@ public class AuthService {
     private final PasswordEncoder         passwordEncoder;
     private final JwtUtil                 jwtUtil;
 
-    // ── BUYER REGISTER (Sprint 1 — unchanged) ──────────────────
+    // ── BUYER REGISTER ──────────────────────────────────────────
     @Transactional
     public AuthResponse registerBuyer(RegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
@@ -54,10 +54,10 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
         log.info("Buyer registered: {}", saved.getEmail());
-        return new AuthResponse(token, saved.getRole().name(), saved.getFullName(), saved.getId());
+        return buildAuthResponse(token, saved);
     }
 
-    // ── FARMER REGISTER (Sprint 1 — unchanged) ─────────────────
+    // ── FARMER REGISTER (maps farmer-specific fields) ───────────
     @Transactional
     public AuthResponse registerFarmer(RegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
@@ -74,14 +74,23 @@ public class AuthService {
 
         Farmer farmer = new Farmer();
         farmer.setUser(saved);
+        farmer.setFarmName(req.getFarmName());
+        farmer.setVillage(req.getVillage());
+        farmer.setDistrict(req.getDistrict());
+        farmer.setState(req.getState());
+        farmer.setPincode(req.getPincode());
+        farmer.setAadhaarNumber(req.getAadhaarNumber());
+        farmer.setBankAccountNumber(req.getBankAccountNumber());
+        farmer.setIfscCode(req.getIfscCode());
+        farmer.setBio(req.getBio());
         farmerRepository.save(farmer);
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
         log.info("Farmer registered: {}", saved.getEmail());
-        return new AuthResponse(token, saved.getRole().name(), saved.getFullName(), saved.getId());
+        return buildAuthResponse(token, saved);
     }
 
-    // ── BUYER / FARMER LOGIN (Sprint 1 — unchanged) ─────────────
+    // ── BUYER / FARMER / ADMIN LOGIN ─────────────────────────────
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
         User user = userRepository.findByEmail(req.getEmail())
@@ -93,10 +102,10 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         log.info("User logged in: {} as {}", user.getEmail(), user.getRole());
-        return new AuthResponse(token, user.getRole().name(), user.getFullName(), user.getId());
+        return buildAuthResponse(token, user);
     }
 
-    // ── AGENT REGISTER (Sprint 4 — NEW) ────────────────────────
+    // ── AGENT REGISTER ───────────────────────────────────────────
     @Transactional
     public AuthResponse registerAgent(AgentRegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
@@ -123,10 +132,10 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
         log.info("Delivery agent registered: {}", saved.getEmail());
-        return new AuthResponse(token, saved.getRole().name(), saved.getFullName(), saved.getId());
+        return buildAuthResponse(token, saved);
     }
 
-    // ── AGENT LOGIN (Sprint 4 — NEW) ────────────────────────────
+    // ── AGENT LOGIN ───────────────────────────────────────────────
     @Transactional(readOnly = true)
     public AuthResponse loginAgent(AgentLoginRequest req) {
         User user = userRepository.findByEmail(req.getEmail())
@@ -142,6 +151,22 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         log.info("Agent logged in: {}", user.getEmail());
-        return new AuthResponse(token, user.getRole().name(), user.getFullName(), user.getId());
+        return buildAuthResponse(token, user);
+    }
+
+    // ── shared response builder ──────────────────────────────────
+    // Replaces the old `new AuthResponse(token, role, fullName, id)` calls,
+    // which silently produced an all-null response because AuthResponse's
+    // matching 4-arg constructor had an empty body.
+    private AuthResponse buildAuthResponse(String token, User user) {
+        return AuthResponse.builder()
+                .token(token)
+                .tokenType("Bearer")
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .expiresIn(jwtUtil.getExpiration())
+                .build();
     }
 }

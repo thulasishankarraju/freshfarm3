@@ -21,6 +21,11 @@ public class JwtUtil {
     @Value("${app.jwt.expiration}")
     private long expiration;
 
+    /** Exposes the configured expiration (ms) so callers can report it back to the client. */
+    public long getExpiration() {
+        return expiration;
+    }
+
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
