@@ -39,7 +39,4 @@ public class AuthResponse {
 
     /** Token expiry in milliseconds (24 hours = 86400000) */
     private Long expiresIn;
-
-    public AuthResponse(String token, String name, String fullName, Long id) {
-    }
 }
