@@ -10,8 +10,8 @@ const API_BASE = "http://localhost:8080";
 function authHeaders(extra = {}) {
   const token = localStorage.getItem("ff_token");
   return token
-    ? { ...extra, Authorization: `Bearer ${token}` }
-    : { ...extra };
+      ? { ...extra, Authorization: `Bearer ${token}` }
+      : { ...extra };
 }
 
 /**
@@ -46,15 +46,15 @@ async function request(path, { method = "GET", body, isForm = false, auth = true
     res = await fetch(`${API_BASE}${path}`, opts);
   } catch (networkErr) {
     throw new Error(
-      "Can't reach the backend at " + API_BASE +
-      ". Make sure the Spring Boot app is running locally on port 8080."
+        "Can't reach the backend at " + API_BASE +
+        ". Make sure the Spring Boot app is running locally on port 8080."
     );
   }
 
   const contentType = res.headers.get("content-type") || "";
   const data = contentType.includes("application/json")
-    ? await res.json().catch(() => null)
-    : null;
+      ? await res.json().catch(() => null)
+      : null;
 
   if (!res.ok) {
     const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
@@ -101,6 +101,9 @@ const api = {
   // ---- Forgot password ----
   forgotPasswordSendOtp: (payload) => request("/api/auth/forgot-password/send-otp", { method: "POST", body: payload, auth: false }),
   resetPassword: (payload) => request("/api/auth/forgot-password/reset", { method: "POST", body: payload, auth: false }),
+
+  // ---- Categories ----
+  listCategories: () => request("/api/categories", { auth: false }),
 
   // ---- Products (public GETs, farmer-only writes) ----
   listProducts: (params = "") => request(`/api/products${params}`, { auth: false }),
