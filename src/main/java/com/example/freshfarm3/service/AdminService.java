@@ -33,6 +33,7 @@ public class AdminService {
     private final ReviewRepository reviewRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
 
     // ===========================================================
     // Dashboard
@@ -298,6 +299,28 @@ public class AdminService {
                 .stream()
                 .map(this::mapToOrderResponse)
                 .collect(Collectors.toList());
+    }
+
+    // NEW — there was previously no way for anyone (admin or farmer) to move
+    // an order out of PENDING. That silently blocked delivery assignment
+    // too, since DeliveryService.assignDelivery requires CONFIRMED/PROCESSING.
+    @Transactional
+    public OrderResponse confirmOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+
+        if (order.getOrderStatus() != OrderStatus.PENDING) {
+            throw new RuntimeException(
+                    "Only PENDING orders can be confirmed. Current status: " + order.getOrderStatus());
+        }
+
+        order.setOrderStatus(OrderStatus.CONFIRMED);
+        Order saved = orderRepository.save(order);
+
+        // Let the buyer know their order was confirmed.
+        notificationService.notifyOrderConfirmed(saved);
+
+        return mapToOrderResponse(saved);
     }
 
     private OrderResponse mapToOrderResponse(Order order) {

@@ -40,6 +40,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
+    // NEW — most of this app's business-logic validation (stock checks,
+    // ownership checks, status-transition checks, "not found" checks, etc.)
+    // throws plain RuntimeException with a meaningful message. Without this
+    // handler those messages were being swallowed by the generic
+    // Exception.class catch-all below and replaced with an unhelpful
+    // "Something went wrong" — hiding the real reason from the user.
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
+        log.warn("Business error: {}", e.getMessage());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", 400);
+        body.put("error", "Bad Request");
+        body.put("message", e.getMessage() != null ? e.getMessage() : "Request could not be completed.");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception e) {
         log.error("Unhandled exception: ", e);

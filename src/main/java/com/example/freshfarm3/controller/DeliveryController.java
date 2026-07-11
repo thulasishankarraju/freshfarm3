@@ -28,30 +28,33 @@ public class DeliveryController {
         return ResponseEntity.ok(deliveryService.assignDelivery(req));
     }
 
-    // PUT /api/delivery/pickup  — AGENT
-    @PutMapping("/pickup")
+    // PUT /api/delivery/{deliveryId}/pickup  — AGENT
+    @PutMapping("/{deliveryId}/pickup")
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<DeliveryResponse> pickup(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(deliveryService.markPickedUp(userDetails.getUsername()));
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long deliveryId) {
+        return ResponseEntity.ok(deliveryService.markPickedUp(userDetails.getUsername(), deliveryId));
     }
 
-    // PUT /api/delivery/out-for-delivery  — AGENT
-    @PutMapping("/out-for-delivery")
+    // PUT /api/delivery/{deliveryId}/out-for-delivery  — AGENT
+    @PutMapping("/{deliveryId}/out-for-delivery")
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<DeliveryResponse> outForDelivery(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(deliveryService.markOutForDelivery(userDetails.getUsername()));
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long deliveryId) {
+        return ResponseEntity.ok(deliveryService.markOutForDelivery(userDetails.getUsername(), deliveryId));
     }
 
-    // PUT /api/delivery/complete?otp=123456  — AGENT
-    @PutMapping("/complete")
+    // PUT /api/delivery/{deliveryId}/complete?otp=123456  — AGENT
+    @PutMapping("/{deliveryId}/complete")
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<DeliveryResponse> complete(
             @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long deliveryId,
             @RequestParam String otp) {
         return ResponseEntity.ok(
-                deliveryService.completeDelivery(userDetails.getUsername(), otp)
+                deliveryService.completeDelivery(userDetails.getUsername(), deliveryId, otp)
         );
     }
 

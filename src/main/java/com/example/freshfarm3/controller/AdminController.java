@@ -72,6 +72,16 @@ public class AdminController {
     }
 
     /**
+     * PUT /api/admin/orders/{id}/confirm
+     * Confirms a PENDING order so it can proceed to delivery assignment.
+     */
+    @PutMapping("/orders/{id}/confirm")
+    public ResponseEntity<OrderResponse> confirmOrder(@PathVariable Long id) {
+        log.info("PUT /api/admin/orders/{}/confirm", id);
+        return ResponseEntity.ok(adminService.confirmOrder(id));
+    }
+
+    /**
      * GET /api/admin/statistics
      * Returns a compact platform statistics summary map.
      */

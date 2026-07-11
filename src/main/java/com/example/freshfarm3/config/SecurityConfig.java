@@ -64,7 +64,8 @@ public class SecurityConfig {
                                 "/", "/index.html", "/shop.html", "/cart.html",
                                 "/checkout.html", "/login.html", "/register.html",
                                 "/product-detail.html", "/order-success.html",
-                                "/farmer/**", "/admin/**",
+                                "/orders.html", "/subscriptions.html", "/forgot-password.html",
+                                "/farmer/**", "/admin/**", "/agent/**",
                                 "/css/**", "/js/**", "/images/**", "/img/**", "/favicon.ico"
                         ).permitAll()
 

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<link rel="icon" type="image/png" href="../img/logo-icon.png">
-<title>My deliveries — FarmFresh</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="../img/logo-icon.png">
+  <title>My deliveries — FarmFresh</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 <div id="toast-root"></div>
@@ -14,11 +14,6 @@
 
 <div class="container page">
   <h2>My deliveries</h2>
-  <div class="alert alert-info">
-    The backend's pickup / out-for-delivery endpoints take <strong>no order ID</strong> —
-    they always act on your single current active delivery. So only one delivery below
-    will show action buttons at a time (the first non-delivered one).
-  </div>
   <div id="box"><p class="muted">Loading…</p></div>
 </div>
 
@@ -26,68 +21,69 @@
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
-if (requireAuth(["AGENT"])) load();
+  if (requireAuth(["AGENT"])) load();
 
-async function load() {
-  const box = document.getElementById("box");
-  try {
-    const deliveries = await api.myDeliveries();
-    if (!deliveries.length) { box.innerHTML = `<div class="empty"><h3>No deliveries assigned yet</h3></div>`; return; }
+  async function load() {
+    const box = document.getElementById("box");
+    try {
+      const deliveries = await api.myDeliveries();
+      if (!deliveries.length) { box.innerHTML = `<div class="empty"><h3>No deliveries assigned yet</h3></div>`; return; }
 
-    // First not-yet-delivered item is the one the backend's stateless
-    // pickup/out-for-delivery/complete endpoints will actually act on.
-    const activeIdx = deliveries.findIndex(d => !['DELIVERED', 'CANCELLED'].includes(d.deliveryStatus));
-
-    box.innerHTML = deliveries.map((d, idx) => `
+      box.innerHTML = deliveries.map(d => `
       <div class="card" style="margin-bottom:14px;">
         <div class="flex-between">
           <div><strong>${d.orderNumber}</strong> <span class="badge badge-active">${d.deliveryStatus}</span></div>
         </div>
         <p class="muted" style="margin-top:6px;">Assigned ${d.assignedAt ? new Date(d.assignedAt).toLocaleString() : ''}</p>
-        ${idx === activeIdx ? renderActions(d) : ''}
+        ${renderActions(d)}
       </div>`).join("");
 
-    document.getElementById("pickupBtn")?.addEventListener("click", () => act(api.pickupDelivery, "Marked picked up"));
-    document.getElementById("outBtn")?.addEventListener("click", () => act(api.outForDelivery, "Marked out for delivery"));
-    document.getElementById("completeBtn")?.addEventListener("click", async () => {
-      const otp = document.getElementById("otpInput").value.trim();
-      if (!otp) { toast("Enter the delivery OTP", "err"); return; }
-      try {
-        await api.completeDelivery(otp);
-        toast("Delivery completed");
-        load();
-      } catch (e) { toast(e.message, "err"); }
-    });
+      document.querySelectorAll("[data-pickup]").forEach(btn =>
+              btn.addEventListener("click", () => act(btn.dataset.pickup, api.pickupDelivery, "Marked picked up")));
+      document.querySelectorAll("[data-out]").forEach(btn =>
+              btn.addEventListener("click", () => act(btn.dataset.out, api.outForDelivery, "Marked out for delivery")));
+      document.querySelectorAll("[data-complete]").forEach(btn =>
+              btn.addEventListener("click", async () => {
+                const deliveryId = btn.dataset.complete;
+                const otpInput = document.getElementById(`otpInput-${deliveryId}`);
+                const otp = otpInput.value.trim();
+                if (!otp) { toast("Enter the delivery OTP", "err"); return; }
+                try {
+                  await api.completeDelivery(deliveryId, otp);
+                  toast("Delivery completed");
+                  load();
+                } catch (e) { toast(e.message, "err"); }
+              }));
 
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
-}
 
-function renderActions(d) {
-  if (d.deliveryStatus === "ASSIGNED") {
-    return `<button class="btn btn-primary btn-sm" id="pickupBtn" style="margin-top:10px;">Mark picked up</button>`;
-  }
-  if (d.deliveryStatus === "PICKED_UP") {
-    return `<button class="btn btn-primary btn-sm" id="outBtn" style="margin-top:10px;">Mark out for delivery</button>`;
-  }
-  if (d.deliveryStatus === "OUT_FOR_DELIVERY") {
-    return `
+  function renderActions(d) {
+    if (d.deliveryStatus === "ASSIGNED") {
+      return `<button class="btn btn-primary btn-sm" style="margin-top:10px;" data-pickup="${d.deliveryId}">Mark picked up</button>`;
+    }
+    if (d.deliveryStatus === "PICKED_UP") {
+      return `<button class="btn btn-primary btn-sm" style="margin-top:10px;" data-out="${d.deliveryId}">Mark out for delivery</button>`;
+    }
+    if (d.deliveryStatus === "OUT_FOR_DELIVERY") {
+      return `
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
-        <input id="otpInput" placeholder="Delivery OTP" style="width:140px;">
-        <button class="btn btn-primary btn-sm" id="completeBtn">Complete delivery</button>
+        <input id="otpInput-${d.deliveryId}" placeholder="Delivery OTP" style="width:140px;">
+        <button class="btn btn-primary btn-sm" data-complete="${d.deliveryId}">Complete delivery</button>
       </div>`;
+    }
+    return '';
   }
-  return '';
-}
 
-async function act(fn, msg) {
-  try {
-    await fn();
-    toast(msg);
-    load();
-  } catch (e) { toast(e.message, "err"); }
-}
+  async function act(deliveryId, fn, msg) {
+    try {
+      await fn(deliveryId);
+      toast(msg);
+      load();
+    } catch (e) { toast(e.message, "err"); }
+  }
 </script>
 </body>
 </html>
