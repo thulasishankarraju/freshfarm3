@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>Your cart — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <h2>Your cart</h2>
+  <div id="cartBox"><p class="muted">Loading…</p></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+if (requireAuth(["BUYER"])) load();
+
+async function load() {
+  const box = document.getElementById("cartBox");
+  try {
+    const cart = await api.getCart();
+    if (!cart.items || !cart.items.length) {
+      box.innerHTML = `<div class="empty"><h3>Your cart is empty</h3><p><a href="shop.html">Browse the shop →</a></p></div>`;
+      return;
+    }
+    box.innerHTML = `
+      <div class="card">
+        <table>
+          <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th><th></th></tr></thead>
+          <tbody>
+            ${cart.items.map(i => `
+              <tr>
+                <td>${i.productName}${i.isAvailable === false ? ' <span class="badge badge-inactive">Unavailable</span>' : ''}</td>
+                <td>${money(i.pricePerUnit)}</td>
+                <td>
+                  <div class="qty-control">
+                    <button type="button" onclick="changeQty(${i.cartItemId}, ${i.quantity - 1})">−</button>
+                    <span>${i.quantity}</span>
+                    <button type="button" onclick="changeQty(${i.cartItemId}, ${i.quantity + 1})">+</button>
+                  </div>
+                </td>
+                <td>${money(i.subtotal)}</td>
+                <td><button class="btn btn-danger btn-sm" onclick="removeItem(${i.cartItemId})">Remove</button></td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+      <div class="flex-between" style="margin-top:20px;">
+        <button class="btn btn-outline" onclick="clearCart()">Clear cart</button>
+        <div style="text-align:right;">
+          <h3 style="margin-bottom:4px;">Total: ${money(cart.totalAmount)}</h3>
+          <a class="btn btn-accent" href="checkout.html">Proceed to checkout →</a>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+async function changeQty(cartItemId, newQty) {
+  if (newQty < 1) return removeItem(cartItemId);
+  try {
+    await api.updateCartItem(cartItemId, newQty);
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+async function removeItem(cartItemId) {
+  try {
+    await api.removeCartItem(cartItemId);
+    toast("Item removed");
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+async function clearCart() {
+  if (!confirm("Clear your entire cart?")) return;
+  try {
+    await api.clearCart();
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+</script>
+</body>
+</html>

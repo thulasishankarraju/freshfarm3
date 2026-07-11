@@ -1,50 +1,38 @@
 package com.example.freshfarm3.exception;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Central place that turns our custom exceptions into consistent JSON error
- * responses instead of a raw 500 stack trace.
- */
 @RestControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
-        return build(HttpStatus.NOT_FOUND, ex.getMessage());
+    // NEW — add this method
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException e) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", 404);
+        body.put("error", "Not Found");
+        body.put("message", "The requested resource was not found.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
-    @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(ValidationException ex) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
-        return build(HttpStatus.FORBIDDEN, ex.getMessage());
-    }
-
+    // Your existing catch-all handler — keep this as is, below the new one
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
-        log.error("Unhandled exception", ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong. Please try again later.");
-    }
-
-    private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", status.getReasonPhrase());
-        body.put("message", message);
-        return ResponseEntity.status(status).body(body);
+    public ResponseEntity<Map<String, Object>> handleException(Exception e) {
+        // your existing log.error(...) and logic
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", 500);
+        body.put("error", "Internal Server Error");
+        body.put("message", "Something went wrong. Please try again later.");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 }

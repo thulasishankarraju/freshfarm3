@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>Shop — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">The shop</span>
+      <h2>All produce</h2>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <input id="searchBox" placeholder="Search products…" style="width:220px;">
+      <select id="categoryFilter"><option value="">All categories</option></select>
+    </div>
+  </div>
+  <div id="products" class="grid grid-3"><p class="muted">Loading products…</p></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+let allProducts = [];
+
+function render(list) {
+  const box = document.getElementById("products");
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><h3>No products found</h3><p>Try a different search or category.</p></div>`;
+    return;
+  }
+  box.innerHTML = list.map(p => `
+    <a class="product-card" href="product-detail.html?id=${p.id}" style="text-decoration:none;color:inherit;">
+      <img src="${p.primaryImageUrl ? assetUrl(p.primaryImageUrl) : 'https://placehold.co/400x300?text=FarmFresh'}" alt="${p.name}">
+      <div class="body">
+        <span class="badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${p.status || 'ACTIVE'}</span>
+        <div class="name">${p.name}</div>
+        <div class="farm">${p.farmName || p.farmerName || ""} · ${p.categoryName || ""}</div>
+        <div class="price">${money(p.price)}</div>
+      </div>
+    </a>`).join("");
+}
+
+function populateCategories(list) {
+  const sel = document.getElementById("categoryFilter");
+  const seen = new Map();
+  list.forEach(p => { if (p.categoryId) seen.set(p.categoryId, p.categoryName); });
+  // Note: backend has no dedicated /api/categories endpoint, so categories
+  // are derived here from whatever products are returned.
+  seen.forEach((name, id) => {
+    const opt = document.createElement("option");
+    opt.value = id; opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+async function load() {
+  const box = document.getElementById("products");
+  try {
+    const page = await api.listProducts("?size=50");
+    allProducts = page.content || page;
+    populateCategories(allProducts);
+    render(allProducts);
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+document.getElementById("searchBox").addEventListener("input", async (e) => {
+  const q = e.target.value.trim();
+  if (!q) { render(allProducts); return; }
+  try {
+    const results = await api.searchProducts(q);
+    render(results.content || results);
+  } catch (err) { toast(err.message, "err"); }
+});
+
+document.getElementById("categoryFilter").addEventListener("change", async (e) => {
+  const id = e.target.value;
+  if (!id) { render(allProducts); return; }
+  try {
+    const results = await api.productsByCategory(id);
+    render(results.content || results);
+  } catch (err) { toast(err.message, "err"); }
+});
+
+load();
+</script>
+</body>
+</html>

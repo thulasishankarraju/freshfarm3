@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="../img/logo-icon.png">
+<title>Admin dashboard — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <h2>Admin dashboard</h2>
+  <div id="stats" class="grid grid-3"><p class="muted">Loading…</p></div>
+
+  <div class="section-head" style="margin-top:34px;"><h3>Pending farmer approvals</h3></div>
+  <div id="pendingBox"><p class="muted">Loading…</p></div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/nav.js"></script>
+<script>
+if (requireAuth(["ADMIN"])) { loadStats(); loadPending(); }
+
+async function loadStats() {
+  const box = document.getElementById("stats");
+  try {
+    const d = await api.adminDashboard();
+    box.innerHTML = `
+      <div class="stat"><div class="num">${d.totalUsers ?? 0}</div><div class="label">Total users</div></div>
+      <div class="stat"><div class="num">${d.totalBuyers ?? 0}</div><div class="label">Buyers</div></div>
+      <div class="stat"><div class="num">${d.totalFarmers ?? 0}</div><div class="label">Farmers</div></div>
+      <div class="stat"><div class="num">${d.pendingFarmers ?? 0}</div><div class="label">Pending approvals</div></div>
+      <div class="stat"><div class="num">${d.totalProducts ?? 0}</div><div class="label">Total products</div></div>
+      <div class="stat"><div class="num">${d.totalOrders ?? 0}</div><div class="label">Total orders</div></div>
+      <div class="stat"><div class="num">${money(d.totalRevenue)}</div><div class="label">Total revenue</div></div>
+      <div class="stat"><div class="num">${money(d.revenueToday)}</div><div class="label">Revenue today</div></div>
+      <div class="stat"><div class="num">${d.activeDeliveryAgents ?? 0}</div><div class="label">Active agents</div></div>
+    `;
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+async function loadPending() {
+  const box = document.getElementById("pendingBox");
+  try {
+    const farmers = await api.pendingFarmers();
+    if (!farmers.length) { box.innerHTML = `<p class="muted">No farmers awaiting approval.</p>`; return; }
+    box.innerHTML = farmers.map(f => `
+      <div class="card flex-between" style="margin-bottom:12px;">
+        <div>
+          <strong>${f.farmerName}</strong> — ${f.farmName || ''}
+          <div class="muted">${f.email} · ${f.phone || ''} · ${f.farmLocation || ''}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="approve(${f.farmerId})">Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="reject(${f.farmerId})">Reject</button>
+        </div>
+      </div>`).join("");
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+async function approve(id) { try { await api.approveFarmer(id); toast("Farmer approved"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+async function reject(id) { try { await api.rejectFarmer(id); toast("Farmer rejected"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+</script>
+</body>
+</html>

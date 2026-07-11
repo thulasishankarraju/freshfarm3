@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="../img/logo-icon.png">
+<title>My products — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <div class="section-head">
+    <h2>My products</h2>
+    <button class="btn btn-accent" onclick="openCreate()">+ Add product</button>
+  </div>
+  <div id="alertBox"></div>
+  <div id="productsBox" class="grid grid-3"><p class="muted">Loading…</p></div>
+</div>
+
+<!-- Create modal (multipart — required by backend for POST /api/products) -->
+<div id="createModal" class="card" style="display:none;position:fixed;top:8%;left:50%;transform:translateX(-50%);width:92%;max-width:480px;z-index:200;max-height:84vh;overflow:auto;">
+  <h3>New product</h3>
+  <label>Name</label><input id="c_name" required>
+  <label>Description</label><textarea id="c_description"></textarea>
+  <div class="field-row">
+    <div><label>Price (₹)</label><input type="number" step="0.01" id="c_price" required></div>
+    <div><label>Quantity in stock</label><input type="number" id="c_quantity" required></div>
+  </div>
+  <label>Category ID</label>
+  <input type="number" id="c_categoryId" required>
+  <p class="muted" style="margin-top:2px;">No <code>/api/categories</code> endpoint exists on the backend — enter the numeric category ID directly (check the <code>categories</code> table).</p>
+  <label>Product images</label>
+  <input type="file" id="c_images" multiple accept="image/*">
+  <div style="display:flex;gap:10px;margin-top:16px;">
+    <button class="btn btn-primary" id="createBtn">Create product</button>
+    <button class="btn btn-outline" onclick="document.getElementById('createModal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<!-- Edit modal (JSON body — PUT /api/products/{id} does not accept new images) -->
+<div id="editModal" class="card" style="display:none;position:fixed;top:8%;left:50%;transform:translateX(-50%);width:92%;max-width:480px;z-index:200;max-height:84vh;overflow:auto;">
+  <h3>Edit product</h3>
+  <input type="hidden" id="e_id">
+  <label>Name</label><input id="e_name" required>
+  <label>Description</label><textarea id="e_description"></textarea>
+  <div class="field-row">
+    <div><label>Price (₹)</label><input type="number" step="0.01" id="e_price" required></div>
+    <div><label>Quantity</label><input type="number" id="e_quantity" required></div>
+  </div>
+  <label>Category ID</label><input type="number" id="e_categoryId" required>
+  <label>Status</label>
+  <select id="e_status">
+    <option value="ACTIVE">Active</option>
+    <option value="INACTIVE">Inactive</option>
+    <option value="OUT_OF_STOCK">Out of stock</option>
+  </select>
+  <div style="display:flex;gap:10px;margin-top:16px;">
+    <button class="btn btn-primary" id="saveEditBtn">Save changes</button>
+    <button class="btn btn-outline" onclick="document.getElementById('editModal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/nav.js"></script>
+<script>
+if (requireAuth(["FARMER"])) load();
+
+async function load() {
+  const box = document.getElementById("productsBox");
+  try {
+    const products = await api.myProducts();
+    if (!products.length) {
+      box.innerHTML = `<div class="empty"><h3>No products yet</h3><p>Add your first listing above.</p></div>`;
+      return;
+    }
+    box.innerHTML = products.map(p => `
+      <div class="product-card">
+        <img src="${p.primaryImageUrl ? assetUrl(p.primaryImageUrl) : 'https://placehold.co/400x300?text=FarmFresh'}" alt="${p.name}">
+        <div class="body">
+          <span class="badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${p.status}</span>
+          <div class="name">${p.name}</div>
+          <div class="muted">${p.quantity} in stock</div>
+          <div class="price">${money(p.price)}</div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button class="btn btn-outline btn-sm" onclick='openEdit(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="del(${p.id})">Delete</button>
+          </div>
+        </div>
+      </div>`).join("");
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+function openCreate() {
+  document.getElementById("createModal").style.display = "block";
+}
+
+document.getElementById("createBtn").addEventListener("click", async () => {
+  const alertBox = document.getElementById("alertBox");
+  try {
+    const productRequest = {
+      name: document.getElementById("c_name").value.trim(),
+      description: document.getElementById("c_description").value.trim(),
+      price: Number(document.getElementById("c_price").value),
+      quantity: Number(document.getElementById("c_quantity").value),
+      categoryId: Number(document.getElementById("c_categoryId").value)
+    };
+    const files = Array.from(document.getElementById("c_images").files || []);
+    const fd = buildProductFormData(productRequest, files);
+    await api.createProduct(fd);
+    toast("Product created");
+    document.getElementById("createModal").style.display = "none";
+    load();
+  } catch (e) {
+    alertBox.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+});
+
+function openEdit(p) {
+  document.getElementById("e_id").value = p.id;
+  document.getElementById("e_name").value = p.name;
+  document.getElementById("e_description").value = p.description || "";
+  document.getElementById("e_price").value = p.price;
+  document.getElementById("e_quantity").value = p.quantity;
+  document.getElementById("e_categoryId").value = p.categoryId || "";
+  document.getElementById("e_status").value = p.status || "ACTIVE";
+  document.getElementById("editModal").style.display = "block";
+}
+
+document.getElementById("saveEditBtn").addEventListener("click", async () => {
+  const id = document.getElementById("e_id").value;
+  try {
+    await api.updateProduct(id, {
+      name: document.getElementById("e_name").value.trim(),
+      description: document.getElementById("e_description").value.trim(),
+      price: Number(document.getElementById("e_price").value),
+      quantity: Number(document.getElementById("e_quantity").value),
+      categoryId: Number(document.getElementById("e_categoryId").value),
+      status: document.getElementById("e_status").value
+    });
+    toast("Product updated");
+    document.getElementById("editModal").style.display = "none";
+    load();
+  } catch (e) { toast(e.message, "err"); }
+});
+
+async function del(id) {
+  if (!confirm("Delete this product?")) return;
+  try {
+    await api.deleteProduct(id);
+    toast("Product deleted");
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+</script>
+</body>
+</html>
