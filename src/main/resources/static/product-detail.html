@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>Product — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page" id="content"><p class="muted">Loading…</p></div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const productId = params.get("id");
+let product = null;
+
+function stars(n) {
+  const full = Math.round(n || 0);
+  return `<span class="stars">${"★".repeat(full)}${"☆".repeat(5 - full)}</span>`;
+}
+
+async function load() {
+  const box = document.getElementById("content");
+  if (!productId) { box.innerHTML = `<div class="alert alert-err">No product id in URL.</div>`; return; }
+  try {
+    const [p, summary, reviews] = await Promise.all([
+      api.getProduct(productId),
+      api.productReviewSummary(productId).catch(() => null),
+      api.productReviews(productId).catch(() => [])
+    ]);
+    product = p;
+    const reviewList = reviews.content || reviews || [];
+
+    box.innerHTML = `
+      <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:36px;">
+        <div>
+          <img src="${p.primaryImageUrl ? assetUrl(p.primaryImageUrl) : 'https://placehold.co/600x450?text=FarmFresh'}"
+               style="width:100%;border-radius:12px;border:1px solid var(--line);" alt="${p.name}">
+        </div>
+        <div>
+          <span class="eyebrow">${p.categoryName || ""}</span>
+          <h1>${p.name}</h1>
+          <p class="muted">Sold by ${p.farmName || p.farmerName || "a FarmFresh farmer"}</p>
+          ${summary ? `<p>${stars(summary.averageRating)} <span class="muted">(${summary.totalReviews || 0} reviews)</span></p>` : ""}
+          <p>${p.description || ""}</p>
+          <h2 style="color:var(--primary-d)">${money(p.price)}</h2>
+          <p class="muted">${p.quantity > 0 ? p.quantity + " in stock" : "Out of stock"}</p>
+
+          <div class="qty-control" style="margin:14px 0;">
+            <button type="button" id="qtyMinus">−</button>
+            <input id="qty" type="number" min="1" value="1" style="width:70px;text-align:center;">
+            <button type="button" id="qtyPlus">+</button>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="addToCartBtn">Add to cart</button>
+            <button class="btn btn-outline" id="subscribeBtn">Subscribe for recurring delivery</button>
+          </div>
+          <div id="detail-alert" style="margin-top:14px;"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:50px;">
+        <h2>Reviews</h2>
+        ${reviewList.length ? reviewList.map(r => `
+          <div class="card" style="margin-bottom:12px;">
+            <div class="flex-between">
+              <strong>${r.buyerName || "Buyer"}</strong>
+              ${stars(r.rating)}
+            </div>
+            ${r.reviewTitle ? `<p style="font-weight:600;margin:6px 0 2px;">${r.reviewTitle}</p>` : ""}
+            <p class="muted">${r.reviewComment || ""}</p>
+          </div>`).join("") : `<p class="muted">No reviews yet.</p>`}
+      </div>
+
+      <div id="subscribeModal" class="card" style="display:none;margin-top:24px;max-width:420px;">
+        <h3>Set up a subscription</h3>
+        <label>Frequency</label>
+        <select id="subFreq">
+          <option value="DAILY">Daily</option>
+          <option value="WEEKLY">Weekly</option>
+          <option value="MONTHLY">Monthly</option>
+        </select>
+        <label>Start date</label>
+        <input type="date" id="subStart">
+        <button class="btn btn-primary btn-block" style="margin-top:16px" id="confirmSubBtn">Confirm subscription</button>
+      </div>
+    `;
+
+    document.getElementById("qtyMinus").onclick = () => {
+      const q = document.getElementById("qty");
+      q.value = Math.max(1, Number(q.value) - 1);
+    };
+    document.getElementById("qtyPlus").onclick = () => {
+      const q = document.getElementById("qty");
+      q.value = Number(q.value) + 1;
+    };
+
+    document.getElementById("addToCartBtn").onclick = async () => {
+      if (!requireAuth(["BUYER"])) return;
+      const alertBox = document.getElementById("detail-alert");
+      try {
+        await api.addToCart({ productId: Number(productId), quantity: Number(document.getElementById("qty").value) });
+        toast("Added to cart");
+      } catch (e) { alertBox.innerHTML = `<div class="alert alert-err">${e.message}</div>`; }
+    };
+
+    document.getElementById("subscribeBtn").onclick = () => {
+      if (!requireAuth(["BUYER"])) return;
+      document.getElementById("subscribeModal").style.display = "block";
+      document.getElementById("subStart").value = new Date().toISOString().split("T")[0];
+    };
+
+    document.getElementById("confirmSubBtn").onclick = async () => {
+      try {
+        await api.createSubscription({
+          productId: Number(productId),
+          quantity: Number(document.getElementById("qty").value),
+          frequency: document.getElementById("subFreq").value,
+          startDate: document.getElementById("subStart").value
+        });
+        toast("Subscription created — see it under 'Subscriptions'.");
+        document.getElementById("subscribeModal").style.display = "none";
+      } catch (e) { toast(e.message, "err"); }
+    };
+
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>

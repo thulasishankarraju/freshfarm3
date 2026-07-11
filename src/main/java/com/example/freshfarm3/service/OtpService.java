@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class OtpService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // ── STEP 1: Generate and send OTP ──────────────────────────────────────
+    @Transactional
     public void sendOtp(String recipient, String channelStr, String purposeStr, String role) {
 
         OtpChannel channel = OtpChannel.valueOf(channelStr.toUpperCase());

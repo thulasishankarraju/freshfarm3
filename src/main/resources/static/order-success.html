@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>Order placed — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page" style="max-width:560px;">
+  <div id="content" class="card"><p class="muted">Loading…</p></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+if (requireAuth(["BUYER"])) load();
+
+async function load() {
+  const params = new URLSearchParams(location.search);
+  const orderId = params.get("orderId");
+  const box = document.getElementById("content");
+  if (!orderId) { box.innerHTML = `<p class="muted">No order id given.</p>`; return; }
+  try {
+    const order = await api.getOrder(orderId);
+    box.innerHTML = `
+      <h2 style="color:var(--primary-d)">🎉 Order placed!</h2>
+      <p>Order <strong>${order.orderNumber}</strong> — status: <span class="badge badge-active">${order.orderStatus}</span></p>
+      <table style="margin:16px 0;">
+        <tbody>
+          ${order.items.map(i => `<tr><td>${i.productName} × ${i.quantity}</td><td>${money(i.subtotal)}</td></tr>`).join("")}
+        </tbody>
+      </table>
+      <div class="flex-between"><span>Subtotal</span><span>${money(order.subtotal)}</span></div>
+      <div class="flex-between"><span>Delivery</span><span>${money(order.deliveryCharge)}</span></div>
+      <div class="flex-between" style="margin-top:6px;"><strong>Total</strong><strong>${money(order.totalAmount)}</strong></div>
+      <p class="muted" style="margin-top:14px;">Delivering to: ${order.deliveryAddress}</p>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <a class="btn btn-primary" href="orders.html">View my orders</a>
+        <a class="btn btn-outline" href="shop.html">Keep shopping</a>
+      </div>
+    `;
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>

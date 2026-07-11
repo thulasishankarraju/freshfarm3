@@ -4,6 +4,8 @@ import com.example.freshfarm3.dto.request.AgentLoginRequest;
 import com.example.freshfarm3.dto.request.AgentRegisterRequest;
 import com.example.freshfarm3.dto.request.LoginRequest;
 import com.example.freshfarm3.dto.request.RegisterRequest;
+import com.example.freshfarm3.dto.request.ResetPasswordRequest;
+import com.example.freshfarm3.dto.request.SendOtpRequest;
 import com.example.freshfarm3.dto.response.AuthResponse;
 import com.example.freshfarm3.entity.Buyer;
 import com.example.freshfarm3.entity.DeliveryAgent;
@@ -32,6 +34,7 @@ public class AuthService {
     private final DeliveryAgentRepository deliveryAgentRepository;
     private final PasswordEncoder         passwordEncoder;
     private final JwtUtil                 jwtUtil;
+    private final OtpService              otpService;
 
     // ── BUYER REGISTER ──────────────────────────────────────────
     @Transactional
@@ -39,6 +42,7 @@ public class AuthService {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
+        requireRegistrationOtpVerified(req.getEmail(), req.getPhone());
         User user = User.builder()
                 .fullName(req.getFullName())
                 .email(req.getEmail())
@@ -63,6 +67,7 @@ public class AuthService {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
+        requireRegistrationOtpVerified(req.getEmail(), req.getPhone());
         User user = User.builder()
                 .fullName(req.getFullName())
                 .email(req.getEmail())
@@ -111,6 +116,7 @@ public class AuthService {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
+        requireRegistrationOtpVerified(req.getEmail(), req.getPhone());
 
         User user = User.builder()
                 .fullName(req.getName())
@@ -152,6 +158,80 @@ public class AuthService {
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
         log.info("Agent logged in: {}", user.getEmail());
         return buildAuthResponse(token, user);
+    }
+
+    // ── REGISTRATION OTP ─────────────────────────────────────────
+    // Step 1: send an OTP to an email/phone that isn't registered yet.
+    public void initiateRegistrationOtp(SendOtpRequest req) {
+        boolean alreadyExists = req.getChannel().equalsIgnoreCase("EMAIL")
+                ? userRepository.existsByEmail(req.getRecipient())
+                : userRepository.existsByPhone(toStoredPhone(req.getRecipient()));
+        if (alreadyExists) {
+            throw new RuntimeException("An account already exists for " + req.getRecipient());
+        }
+        otpService.sendOtp(req.getRecipient(), req.getChannel(), "REGISTRATION", req.getRole());
+    }
+
+    // Step 2 (verification itself) happens directly via OtpService.verifyOtp,
+    // called from AuthController — no extra business rule needed there.
+
+    // Guard used by registerBuyer/registerFarmer/registerAgent: registration
+    // is only allowed once the OTP flow above has been completed for either
+    // the email or the phone number given at registration.
+    //
+    // NOTE: OtpService requires phone recipients in "+91XXXXXXXXXX" format
+    // (it validates/sends via Twilio that way), but User.phone and every
+    // RegisterRequest.phone in this app store/validate the bare 10-digit
+    // form ("9876543210"). So the OTP row's `recipient` was saved as
+    // "+91XXXXXXXXXX" while `phone` here is the bare form — we must check
+    // both forms or phone-based verification would never match.
+    private void requireRegistrationOtpVerified(String email, String phone) {
+        boolean verified = otpService.isOtpVerified(email, "REGISTRATION")
+                || (phone != null && otpService.isOtpVerified(toIndiaOtpFormat(phone), "REGISTRATION"))
+                || (phone != null && otpService.isOtpVerified(phone, "REGISTRATION"));
+        if (!verified) {
+            throw new RuntimeException(
+                    "Please verify your email or phone with the OTP sent to you before registering.");
+        }
+    }
+
+    // ── FORGOT PASSWORD ───────────────────────────────────────────
+    // Step 1: send an OTP to an email/phone that IS already registered.
+    public void initiatePasswordResetOtp(SendOtpRequest req) {
+        User user = req.getChannel().equalsIgnoreCase("EMAIL")
+                ? userRepository.findByEmail(req.getRecipient())
+                .orElseThrow(() -> new RuntimeException("No account found for " + req.getRecipient()))
+                : userRepository.findByPhone(toStoredPhone(req.getRecipient()))
+                .orElseThrow(() -> new RuntimeException("No account found for " + req.getRecipient()));
+        otpService.sendOtp(req.getRecipient(), req.getChannel(), "FORGOT_PASSWORD", user.getRole().name());
+    }
+
+    // Step 2: verify the OTP and set the new password in one call.
+    @Transactional
+    public void resetPassword(ResetPasswordRequest req) {
+        otpService.verifyOtp(req.getRecipient(), req.getOtpCode(), "FORGOT_PASSWORD");
+
+        User user = userRepository.findByEmail(req.getRecipient())
+                .or(() -> userRepository.findByPhone(toStoredPhone(req.getRecipient())))
+                .orElseThrow(() -> new RuntimeException("No account found for " + req.getRecipient()));
+
+        if (!user.getRole().name().equalsIgnoreCase(req.getRole())) {
+            throw new RuntimeException("Role does not match the account found for " + req.getRecipient());
+        }
+
+        user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        userRepository.save(user);
+        log.info("Password reset for {}", req.getRecipient());
+    }
+
+    // "+919876543210" → "9876543210" (strips a leading +91, leaves email/other input untouched)
+    private String toStoredPhone(String recipient) {
+        return recipient.startsWith("+91") ? recipient.substring(3) : recipient;
+    }
+
+    // "9876543210" → "+919876543210" (only used to also check the OTP-service's required format)
+    private String toIndiaOtpFormat(String phone) {
+        return phone.startsWith("+") ? phone : "+91" + phone;
     }
 
     // ── shared response builder ──────────────────────────────────

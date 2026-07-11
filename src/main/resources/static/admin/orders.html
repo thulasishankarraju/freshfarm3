@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="../img/logo-icon.png">
+<title>All orders — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <h2>All orders</h2>
+  <div id="box"><p class="muted">Loading…</p></div>
+
+  <div class="section-head" style="margin-top:34px;"><h3>Assign a delivery agent</h3></div>
+  <div class="card" style="max-width:420px;">
+    <label>Order ID</label><input type="number" id="assign_orderId">
+    <label>Agent ID (optional — leave blank to auto-assign)</label><input type="number" id="assign_agentId">
+    <button class="btn btn-primary" style="margin-top:14px" onclick="assign()">Assign</button>
+  </div>
+</div>
+
+<script src="../js/api.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/nav.js"></script>
+<script>
+if (requireAuth(["ADMIN"])) load();
+
+async function load() {
+  const box = document.getElementById("box");
+  try {
+    // GET /api/admin/orders returns OrderResponse (flat) — different shape
+    // from the buyer-facing CheckoutResponse used elsewhere in this app.
+    const orders = await api.adminOrders();
+    if (!orders.length) { box.innerHTML = `<p class="muted">No orders yet.</p>`; return; }
+    box.innerHTML = `
+      <table class="card">
+        <thead><tr><th>Order #</th><th>Buyer</th><th>Status</th><th>Payment</th><th>Total</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+          ${orders.map(o => `
+            <tr>
+              <td>${o.orderNumber}</td>
+              <td>${o.buyerName}</td>
+              <td><span class="badge badge-active">${o.orderStatus}</span></td>
+              <td>${o.paymentStatus}</td>
+              <td>${money(o.totalAmount)}</td>
+              <td>${o.orderDate ? new Date(o.orderDate).toLocaleDateString() : ''}</td>
+              <td><button class="btn btn-outline btn-sm" onclick="refund(${o.id})">Refund</button></td>
+            </tr>`).join("")}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+async function assign() {
+  const orderId = document.getElementById("assign_orderId").value;
+  const agentId = document.getElementById("assign_agentId").value;
+  if (!orderId) { toast("Enter an order ID", "err"); return; }
+  try {
+    await api.assignDelivery({ orderId: Number(orderId), agentId: agentId ? Number(agentId) : null });
+    toast("Delivery assigned");
+  } catch (e) { toast(e.message, "err"); }
+}
+
+async function refund(orderId) {
+  if (!confirm("Refund this order's payment?")) return;
+  try {
+    await api.refundPayment(orderId);
+    toast("Refund processed");
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+</script>
+</body>
+</html>

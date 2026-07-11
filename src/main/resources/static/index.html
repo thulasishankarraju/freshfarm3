@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="img/logo-icon.png">
+    <title>FarmFresh — Straight from the farm</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="toast-root"></div>
+    <div id="nav"></div>
+
+    <div class="container page">
+        <section class="hero">
+            <span class="eyebrow" style="color:#DCE6D9">Farm to doorstep</span>
+            <h1>EMPORING FARMERS ENRICHING LIVES.</h1>
+            <p>FarmFresh connects farmers directly to your kitchen — no middlemen, fair prices, and full traceability on every crate,.</p>
+            <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
+                <a class="btn btn-accent" href="shop.html">Browse the shop</a>
+                <a class="btn btn-outline" style="border-color:#8AA187;color:#fff" href="register.html">Become a farmer partner</a>
+            </div>
+        </section>
+
+        <div class="section-head">
+            <div>
+                <span class="eyebrow">Fresh this week</span>
+                <h2>Featured produce</h2>
+            </div>
+            <a href="shop.html" class="btn btn-outline btn-sm">View all →</a>
+        </div>
+        <div id="featured" class="grid grid-3">
+            <p class="muted">Loading products…</p>
+        </div>
+    </div>
+
+    <footer>FarmFresh — connecting to backend at <code>http://localhost:8080</code></footer>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/nav.js"></script>
+    <script>
+        async function loadFeatured() {
+            const box = document.getElementById("featured");
+            try {
+                const page = await api.listProducts("?size=6");
+                const items = page.content || page; // tolerate Page<> or plain array
+                if (!items || !items.length) {
+                    box.innerHTML = `<div class="empty"><h3>No products yet</h3><p>Check back soon.</p></div>`;
+                    return;
+                }
+                box.innerHTML = items.map(p => `
+      <a class="product-card" href="product-detail.html?id=${p.id}" style="text-decoration:none;color:inherit;">
+        <img src="${p.primaryImageUrl ? assetUrl(p.primaryImageUrl) : 'https://placehold.co/400x300?text=FarmFresh'}" alt="${p.name}">
+        <div class="body">
+          <div class="name">${p.name}</div>
+          <div class="farm">${p.farmName || p.farmerName || ""}</div>
+          <div class="price">${money(p.price)}</div>
+        </div>
+      </a>`).join("");
+            } catch (e) {
+                box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+            }
+        }
+        loadFeatured();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>My orders — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <h2>My orders</h2>
+  <div id="ordersBox"><p class="muted">Loading…</p></div>
+</div>
+
+<div id="reviewModal" class="card" style="display:none;position:fixed;top:15%;left:50%;transform:translateX(-50%);width:90%;max-width:420px;z-index:200;">
+  <h3>Leave a review</h3>
+  <input type="hidden" id="rv_productId">
+  <input type="hidden" id="rv_orderId">
+  <label>Rating (1–5)</label>
+  <input type="number" id="rv_rating" min="1" max="5" value="5">
+  <label>Title</label>
+  <input id="rv_title" maxlength="150">
+  <label>Comment</label>
+  <textarea id="rv_comment" maxlength="2000"></textarea>
+  <div style="display:flex;gap:10px;margin-top:14px;">
+    <button class="btn btn-primary" id="submitReviewBtn">Submit review</button>
+    <button class="btn btn-outline" onclick="document.getElementById('reviewModal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+if (requireAuth(["BUYER"])) load();
+
+async function load() {
+  const box = document.getElementById("ordersBox");
+  try {
+    const orders = await api.myOrders();
+    if (!orders.length) {
+      box.innerHTML = `<div class="empty"><h3>No orders yet</h3><p><a href="shop.html">Start shopping →</a></p></div>`;
+      return;
+    }
+    box.innerHTML = orders.map(o => `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="flex-between">
+          <div>
+            <strong>${o.orderNumber}</strong>
+            <span class="badge badge-active">${o.orderStatus}</span>
+            <span class="muted">· ${o.paymentStatus}</span>
+          </div>
+          <strong>${money(o.totalAmount)}</strong>
+        </div>
+        <table style="margin-top:10px;">
+          <tbody>
+            ${o.items.map(i => `
+              <tr>
+                <td>${i.productName} × ${i.quantity}</td>
+                <td>${money(i.subtotal)}</td>
+                <td>
+                  ${o.orderStatus === 'DELIVERED'
+                    ? `<button class="btn btn-outline btn-sm" onclick="openReview(${i.productId}, ${o.orderId})">Review</button>`
+                    : ''}
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+        <div style="margin-top:10px;display:flex;gap:10px;">
+          <a class="btn btn-outline btn-sm" href="#" onclick="trackOrder(${o.orderId}); return false;">Track delivery</a>
+          ${['PENDING','CONFIRMED','PROCESSING'].includes(o.orderStatus)
+            ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder(${o.orderId})">Cancel order</button>`
+            : ''}
+        </div>
+        <div id="track-${o.orderId}" class="muted" style="margin-top:8px;"></div>
+      </div>`).join("");
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+async function cancelOrder(orderId) {
+  if (!confirm("Cancel this order?")) return;
+  try {
+    await api.cancelOrder(orderId);
+    toast("Order cancelled");
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+async function trackOrder(orderId) {
+  const box = document.getElementById(`track-${orderId}`);
+  try {
+    const d = await api.trackDelivery(orderId);
+    box.innerHTML = `Delivery status: <strong>${d.deliveryStatus}</strong>${d.agentName ? ` · Agent: ${d.agentName}` : ''}`;
+  } catch (e) {
+    box.innerHTML = `<span class="muted">No delivery assigned yet.</span>`;
+  }
+}
+
+function openReview(productId, orderId) {
+  document.getElementById("rv_productId").value = productId;
+  document.getElementById("rv_orderId").value = orderId;
+  document.getElementById("reviewModal").style.display = "block";
+}
+
+document.getElementById("submitReviewBtn").addEventListener("click", async () => {
+  try {
+    await api.createReview({
+      productId: Number(document.getElementById("rv_productId").value),
+      orderId: Number(document.getElementById("rv_orderId").value),
+      rating: Number(document.getElementById("rv_rating").value),
+      reviewTitle: document.getElementById("rv_title").value.trim(),
+      reviewComment: document.getElementById("rv_comment").value.trim()
+    });
+    toast("Review submitted");
+    document.getElementById("reviewModal").style.display = "none";
+  } catch (e) { toast(e.message, "err"); }
+});
+</script>
+</body>
+</html>

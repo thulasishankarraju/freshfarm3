@@ -3,7 +3,11 @@ package com.example.freshfarm3.controller;
 import com.example.freshfarm3.dto.response.AuthResponse;
 import com.example.freshfarm3.dto.request.LoginRequest;
 import com.example.freshfarm3.dto.request.RegisterRequest;
+import com.example.freshfarm3.dto.request.SendOtpRequest;
+import com.example.freshfarm3.dto.request.VerifyOtpRequest;
+import com.example.freshfarm3.dto.request.ResetPasswordRequest;
 import com.example.freshfarm3.service.AuthService;
+import com.example.freshfarm3.service.OtpService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +35,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final OtpService  otpService;
 
     // ─────────────────────────────────────
     // BUYER REGISTRATION
@@ -127,6 +132,89 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ─────────────────────────────────────
+    // REGISTRATION OTP  (send → verify → then call register/buyer or register/farmer)
+    // ─────────────────────────────────────
+
+    /**
+     * Step 1 of registration: send a 6-digit OTP to the given email or phone.
+     * Rejects if that email/phone is already a registered account.
+     *
+     * Request Body:
+     * { "recipient": "ravi@example.com", "channel": "EMAIL", "purpose": "REGISTRATION" }
+     * (channel is EMAIL or PHONE; for PHONE, recipient must include country code, e.g. +919876543210)
+     */
+    @PostMapping("/register/send-otp")
+    public ResponseEntity<?> registerSendOtp(@Valid @RequestBody SendOtpRequest request) {
+        try {
+            authService.initiateRegistrationOtp(request);
+            return ResponseEntity.ok(Map.of("message", "OTP sent to " + request.getRecipient()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Step 2 of registration: verify the OTP code before the account is created.
+     * Only after this succeeds will /register/buyer or /register/farmer accept
+     * that email/phone (see AuthService.registerBuyer/registerFarmer).
+     *
+     * Request Body:
+     * { "recipient": "ravi@example.com", "otpCode": "123456", "purpose": "REGISTRATION" }
+     */
+    @PostMapping("/register/verify-otp")
+    public ResponseEntity<?> registerVerifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        try {
+            otpService.verifyOtp(request.getRecipient(), request.getOtpCode(), request.getPurpose());
+            return ResponseEntity.ok(Map.of("message", "OTP verified — you can now complete registration"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ─────────────────────────────────────
+    // FORGOT PASSWORD  (send OTP → reset with code + new password)
+    // ─────────────────────────────────────
+
+    /**
+     * Step 1 of password reset: send a 6-digit OTP to an existing account's
+     * email or phone (the user picks which channel). Rejects if no account
+     * matches that recipient.
+     *
+     * Request Body:
+     * { "recipient": "ravi@example.com", "channel": "EMAIL", "purpose": "FORGOT_PASSWORD" }
+     */
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<?> forgotPasswordSendOtp(@Valid @RequestBody SendOtpRequest request) {
+        try {
+            authService.initiatePasswordResetOtp(request);
+            return ResponseEntity.ok(Map.of("message", "OTP sent to " + request.getRecipient()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Step 2 of password reset: verify the OTP and set the new password in
+     * one call.
+     *
+     * Request Body:
+     * { "recipient": "ravi@example.com", "otpCode": "123456", "newPassword": "NewPass123", "role": "BUYER" }
+     */
+    @PostMapping("/forgot-password/reset")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            authService.resetPassword(request);
+            return ResponseEntity.ok(Map.of("message", "Password reset successful — please log in with your new password"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         }
     }

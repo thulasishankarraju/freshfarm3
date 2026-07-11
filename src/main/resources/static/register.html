@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>Register — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container auth-wrap" style="max-width:560px;">
+  <div style="text-align:center;margin-bottom:18px;">
+    <img src="img/logo-full.png" alt="FreshFarm — Empowering farmers, enriching lives" style="height:110px;">
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" data-tab="buyer">Buyer</div>
+      <div class="tab" data-tab="farmer">Farmer</div>
+      <div class="tab" data-tab="agent">Delivery Agent</div>
+    </div>
+
+    <!-- ============ BUYER ============ -->
+    <div class="tab-panel active" id="panel-buyer">
+      <h2>Create a buyer account</h2>
+
+      <div id="b_verifyStage">
+        <p class="muted">First, verify your email or phone with a one-time code.</p>
+        <div id="b_verify-alert"></div>
+        <label>Verify using</label>
+        <select id="b_channel">
+          <option value="EMAIL">Email</option>
+          <option value="PHONE">Phone (SMS)</option>
+        </select>
+        <label id="b_recipientLabel">Email address</label>
+        <input id="b_recipient" required placeholder="you@example.com">
+        <button type="button" class="btn btn-outline btn-block" style="margin-top:14px" id="b_sendOtpBtn">Send OTP</button>
+
+        <div id="b_otpBlock" style="display:none;margin-top:16px;">
+          <label>Enter the 6-digit code</label>
+          <input id="b_otpCode" maxlength="6" placeholder="123456">
+          <button type="button" class="btn btn-primary btn-block" style="margin-top:10px" id="b_verifyOtpBtn">Verify code</button>
+        </div>
+      </div>
+
+      <form id="buyerForm" style="display:none;margin-top:10px;">
+        <div class="alert alert-ok">Contact verified ✓</div>
+        <label>Full name</label><input required id="b_fullName">
+        <label>Email</label><input type="email" required id="b_email">
+        <label>Phone (10-digit Indian mobile)</label><input required pattern="[6-9][0-9]{9}" id="b_phone">
+        <label>Password (min 8 characters)</label><input type="password" required minlength="8" id="b_password">
+        <div id="buyer-alert"></div>
+        <button class="btn btn-primary btn-block" style="margin-top:18px" type="submit">Create buyer account</button>
+      </form>
+    </div>
+
+    <!-- ============ FARMER ============ -->
+    <div class="tab-panel" id="panel-farmer">
+      <h2>Create a farmer account</h2>
+      <p class="muted">Your account is approved by an admin before your products go live — this doesn't block your ability to log in.</p>
+
+      <div id="f_verifyStage">
+        <div id="f_verify-alert"></div>
+        <label>Verify using</label>
+        <select id="f_channel">
+          <option value="EMAIL">Email</option>
+          <option value="PHONE">Phone (SMS)</option>
+        </select>
+        <label id="f_recipientLabel">Email address</label>
+        <input id="f_recipient" required placeholder="you@example.com">
+        <button type="button" class="btn btn-outline btn-block" style="margin-top:14px" id="f_sendOtpBtn">Send OTP</button>
+
+        <div id="f_otpBlock" style="display:none;margin-top:16px;">
+          <label>Enter the 6-digit code</label>
+          <input id="f_otpCode" maxlength="6" placeholder="123456">
+          <button type="button" class="btn btn-primary btn-block" style="margin-top:10px" id="f_verifyOtpBtn">Verify code</button>
+        </div>
+      </div>
+
+      <form id="farmerForm" style="display:none;margin-top:10px;">
+        <div class="alert alert-ok">Contact verified ✓</div>
+        <label>Full name</label><input required id="f_fullName">
+        <div class="field-row">
+          <div><label>Email</label><input type="email" required id="f_email"></div>
+          <div><label>Phone</label><input required pattern="[6-9][0-9]{9}" id="f_phone"></div>
+        </div>
+        <label>Password (min 8 characters)</label><input type="password" required minlength="8" id="f_password">
+        <div class="field-row">
+          <div><label>Farm name</label><input id="f_farmName"></div>
+          <div><label>Village</label><input id="f_village"></div>
+        </div>
+        <div class="field-row">
+          <div><label>District</label><input id="f_district"></div>
+          <div><label>State</label><input id="f_state"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Pincode</label><input id="f_pincode"></div>
+          <div><label>Aadhaar number</label><input id="f_aadhaar"></div>
+        </div>
+        <div class="field-row">
+          <div><label>Bank account number</label><input id="f_bank"></div>
+          <div><label>IFSC code</label><input id="f_ifsc"></div>
+        </div>
+        <label>Short bio</label><textarea id="f_bio"></textarea>
+        <div id="farmer-alert"></div>
+        <button class="btn btn-primary btn-block" style="margin-top:6px" type="submit">Create farmer account</button>
+      </form>
+    </div>
+
+    <!-- ============ AGENT ============ -->
+    <div class="tab-panel" id="panel-agent">
+      <h2>Become a delivery agent</h2>
+
+      <div id="a_verifyStage">
+        <div id="a_verify-alert"></div>
+        <label>Verify using</label>
+        <select id="a_channel">
+          <option value="EMAIL">Email</option>
+          <option value="PHONE">Phone (SMS)</option>
+        </select>
+        <label id="a_recipientLabel">Email address</label>
+        <input id="a_recipient" required placeholder="you@example.com">
+        <button type="button" class="btn btn-outline btn-block" style="margin-top:14px" id="a_sendOtpBtn">Send OTP</button>
+
+        <div id="a_otpBlock" style="display:none;margin-top:16px;">
+          <label>Enter the 6-digit code</label>
+          <input id="a_otpCode" maxlength="6" placeholder="123456">
+          <button type="button" class="btn btn-primary btn-block" style="margin-top:10px" id="a_verifyOtpBtn">Verify code</button>
+        </div>
+      </div>
+
+      <form id="agentForm" style="display:none;margin-top:10px;">
+        <div class="alert alert-ok">Contact verified ✓</div>
+        <label>Full name</label><input required id="a_name">
+        <div class="field-row">
+          <div><label>Email</label><input type="email" required id="a_email"></div>
+          <div><label>Phone</label><input required pattern="[6-9][0-9]{9}" id="a_phone"></div>
+        </div>
+        <label>Password (min 6 characters)</label><input type="password" required minlength="6" id="a_password">
+        <div class="field-row">
+          <div><label>Vehicle number</label><input required id="a_vehicleNumber"></div>
+          <div>
+            <label>Vehicle type</label>
+            <select id="a_vehicleType">
+              <option value="BIKE">Bike</option>
+              <option value="VAN">Van</option>
+              <option value="CYCLE">Cycle</option>
+            </select>
+          </div>
+        </div>
+        <div id="agent-alert"></div>
+        <button class="btn btn-primary btn-block" style="margin-top:18px" type="submit">Create agent account</button>
+      </form>
+    </div>
+
+    <p class="muted" style="margin-top:16px;">Already have an account? <a href="login.html">Log in</a></p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById(`panel-${tab.dataset.tab}`).classList.add("active");
+  });
+});
+
+function redirectByRole(role) {
+  if (role === "FARMER") location.href = "farmer/dashboard.html";
+  else if (role === "ADMIN") location.href = "admin/dashboard.html";
+  else if (role === "AGENT") location.href = "agent/dashboard.html";
+  else location.href = "shop.html";
+}
+
+/**
+ * Wires up the OTP verify-stage for one prefix ("b", "f", or "a").
+ * On successful verify, hides the verify stage, shows the real form,
+ * and pre-fills+locks that form's email/phone field with whichever one
+ * was actually verified (so they can never mismatch what the backend checks).
+ */
+function wireOtpStage(prefix, formId) {
+  const channelSel = document.getElementById(`${prefix}_channel`);
+  const recipientInput = document.getElementById(`${prefix}_recipient`);
+  const recipientLabel = document.getElementById(`${prefix}_recipientLabel`);
+  const sendBtn = document.getElementById(`${prefix}_sendOtpBtn`);
+  const otpBlock = document.getElementById(`${prefix}_otpBlock`);
+  const verifyBtn = document.getElementById(`${prefix}_verifyOtpBtn`);
+  const verifyAlert = document.getElementById(`${prefix}_verify-alert`);
+  const verifyStage = document.getElementById(`${prefix}_verifyStage`);
+  const form = document.getElementById(formId);
+
+  channelSel.addEventListener("change", () => {
+    if (channelSel.value === "EMAIL") {
+      recipientLabel.textContent = "Email address";
+      recipientInput.placeholder = "you@example.com";
+    } else {
+      recipientLabel.textContent = "Phone (10-digit Indian mobile)";
+      recipientInput.placeholder = "9876543210";
+    }
+  });
+
+  sendBtn.addEventListener("click", async () => {
+    verifyAlert.innerHTML = "";
+    const channel = channelSel.value;
+    let recipient = recipientInput.value.trim();
+    if (!recipient) { verifyAlert.innerHTML = `<div class="alert alert-err">Enter your email or phone first.</div>`; return; }
+    // Backend requires phone recipients as +91XXXXXXXXXX for sending.
+    if (channel === "PHONE" && !recipient.startsWith("+")) recipient = "+91" + recipient;
+
+    sendBtn.disabled = true;
+    try {
+      await api.registerSendOtp({ recipient, channel, purpose: "REGISTRATION" });
+      toast("OTP sent — check your " + (channel === "EMAIL" ? "inbox" : "phone"));
+      otpBlock.style.display = "block";
+      sendBtn.textContent = "Resend OTP";
+    } catch (e) {
+      verifyAlert.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+
+  verifyBtn.addEventListener("click", async () => {
+    verifyAlert.innerHTML = "";
+    const channel = channelSel.value;
+    let recipient = recipientInput.value.trim();
+    if (channel === "PHONE" && !recipient.startsWith("+")) recipient = "+91" + recipient;
+    const code = document.getElementById(`${prefix}_otpCode`).value.trim();
+    if (!code) { verifyAlert.innerHTML = `<div class="alert alert-err">Enter the code you received.</div>`; return; }
+
+    try {
+      await api.registerVerifyOtp({ recipient, otpCode: code, purpose: "REGISTRATION" });
+      toast("Verified!");
+      verifyStage.style.display = "none";
+      form.style.display = "block";
+      // Pre-fill + lock whichever field was verified, so it can't drift
+      // from what the backend actually checked.
+      if (channel === "EMAIL") {
+        const emailField = form.querySelector('[id$="_email"]');
+        emailField.value = recipient;
+        emailField.readOnly = true;
+      } else {
+        const phoneField = form.querySelector('[id$="_phone"]');
+        phoneField.value = recipient.replace("+91", "");
+        phoneField.readOnly = true;
+      }
+    } catch (e) {
+      verifyAlert.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
+  });
+}
+
+wireOtpStage("b", "buyerForm");
+wireOtpStage("f", "farmerForm");
+wireOtpStage("a", "agentForm");
+
+document.getElementById("buyerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const box = document.getElementById("buyer-alert"); box.innerHTML = "";
+  try {
+    const auth = await api.registerBuyer({
+      fullName: b_fullName.value.trim(),
+      email: b_email.value.trim(),
+      phone: b_phone.value.trim(),
+      password: b_password.value
+    });
+    session.save(auth);
+    toast("Account created!");
+    redirectByRole(auth.role);
+  } catch (err) { box.innerHTML = `<div class="alert alert-err">${err.message}</div>`; }
+});
+
+document.getElementById("farmerForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const box = document.getElementById("farmer-alert"); box.innerHTML = "";
+  try {
+    const auth = await api.registerFarmer({
+      fullName: f_fullName.value.trim(),
+      email: f_email.value.trim(),
+      phone: f_phone.value.trim(),
+      password: f_password.value,
+      farmName: f_farmName.value.trim(),
+      village: f_village.value.trim(),
+      district: f_district.value.trim(),
+      state: f_state.value.trim(),
+      pincode: f_pincode.value.trim(),
+      aadhaarNumber: f_aadhaar.value.trim(),
+      bankAccountNumber: f_bank.value.trim(),
+      ifscCode: f_ifsc.value.trim(),
+      bio: f_bio.value.trim()
+    });
+    session.save(auth);
+    toast("Farmer account created! Your listings will need admin approval.");
+    redirectByRole(auth.role);
+  } catch (err) { box.innerHTML = `<div class="alert alert-err">${err.message}</div>`; }
+});
+
+document.getElementById("agentForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const box = document.getElementById("agent-alert"); box.innerHTML = "";
+  try {
+    const auth = await api.agentRegister({
+      name: a_name.value.trim(),
+      email: a_email.value.trim(),
+      phone: a_phone.value.trim(),
+      password: a_password.value,
+      vehicleNumber: a_vehicleNumber.value.trim(),
+      vehicleType: a_vehicleType.value
+    });
+    session.save(auth);
+    toast("Agent account created!");
+    location.href = "agent/dashboard.html";
+  } catch (err) { box.innerHTML = `<div class="alert alert-err">${err.message}</div>`; }
+});
+</script>
+</body>
+</html>
