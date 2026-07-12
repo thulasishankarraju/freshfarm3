@@ -129,6 +129,24 @@ th{color:var(--ink-soft);font-size:.78rem;text-transform:uppercase;letter-spacin
 .toast{background:var(--ink);color:#fff;padding:12px 18px;border-radius:8px;box-shadow:var(--shadow);font-size:.88rem;max-width:320px;border-left:4px solid var(--accent);}
 .toast.err{border-left-color:var(--danger);}
 .toast.ok{border-left-color:var(--primary);}
+
+/* ── Notification bell (shared nav) ─────────────────────────── */
+.notif-wrap{position:relative;display:inline-flex;align-items:center;}
+.notif-bell{background:none;border:none;cursor:pointer;color:#EDEAD9;font-size:1.15rem;padding:2px 4px;position:relative;line-height:1;}
+.notif-bell:hover{color:var(--accent);}
+.notif-count{position:absolute;top:-6px;right:-8px;background:var(--danger);color:#fff;border-radius:50%;font-size:.65rem;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;}
+.notif-dropdown{position:absolute;top:calc(100% + 10px);right:0;width:340px;max-width:88vw;max-height:420px;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);z-index:300;}
+.notif-dropdown-header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);}
+.notif-dropdown-header strong{font-size:.9rem;}
+.notif-mark-all{background:none;border:none;color:var(--primary);font-size:.78rem;cursor:pointer;text-decoration:underline;padding:0;}
+.notif-item{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
+.notif-item:last-child{border-bottom:none;}
+.notif-item:hover{background:var(--bg);}
+.notif-item.unread{background:#FBF6E9;}
+.notif-item .notif-title{font-size:.85rem;font-weight:700;color:var(--ink);}
+.notif-item .notif-msg{font-size:.8rem;color:var(--ink-soft);margin-top:2px;}
+.notif-item .notif-time{font-size:.7rem;color:var(--ink-soft);margin-top:4px;}
+.notif-empty{padding:22px 14px;text-align:center;color:var(--ink-soft);font-size:.85rem;}
 .alert{padding:12px 14px;border-radius:8px;font-size:.88rem;margin-bottom:14px;}
 .alert-err{background:#FBEDE9;color:var(--danger);border:1px solid #E7C9C2;}
 .alert-ok{background:#E4EEE2;color:var(--primary-d);border:1px solid #BFD6C0;}

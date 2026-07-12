@@ -1,16 +1,19 @@
 package com.example.freshfarm3.service;
 
+import com.example.freshfarm3.dto.response.NotificationResponse;
 import com.example.freshfarm3.entity.Notification;
 import com.example.freshfarm3.entity.Order;
 import com.example.freshfarm3.entity.OrderItem;
 import com.example.freshfarm3.entity.User;
 import com.example.freshfarm3.repository.NotificationRepository;
+import com.example.freshfarm3.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -18,6 +21,7 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository         userRepository;
     private final EmailService           emailService;
     private final SmsService             smsService;
 
@@ -148,13 +152,55 @@ public class NotificationService {
         return notificationRepository.findByUserEmailOrderByCreatedAtDesc(email);
     }
 
-    // ── MARK AS READ ──────────────────────────────────────────────
+    // ── GET NOTIFICATIONS FOR USER, AS SAFE DTOs ────────────────────
+    // Used by NotificationController — never return the Notification entity
+    // directly, since its lazy `user` field would otherwise serialize the
+    // buyer/agent/admin's User record (including the password hash) to JSON.
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getMyNotifications(String email) {
+        return notificationRepository.findByUserEmailOrderByCreatedAtDesc(email).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ── UNREAD COUNT FOR USER ───────────────────────────────────────
+    @Transactional(readOnly = true)
+    public long getUnreadCount(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+        return notificationRepository.countByUserAndIsReadFalse(user);
+    }
+
+    // ── MARK AS READ (single, owner-checked) ────────────────────────
     @Transactional
-    public void markAsRead(Long notificationId) {
-        notificationRepository.findById(notificationId).ifPresent(n -> {
-            n.setIsRead(true);
-            notificationRepository.save(n);
-        });
+    public void markAsRead(String email, Long notificationId) {
+        Notification n = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found: " + notificationId));
+        if (!n.getUser().getEmail().equalsIgnoreCase(email)) {
+            throw new RuntimeException("This notification does not belong to you");
+        }
+        n.setIsRead(true);
+        notificationRepository.save(n);
+    }
+
+    // ── MARK ALL AS READ ─────────────────────────────────────────────
+    @Transactional
+    public void markAllAsRead(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+        notificationRepository.markAllAsReadForUser(user);
+    }
+
+    private NotificationResponse mapToResponse(Notification n) {
+        return NotificationResponse.builder()
+                .id(n.getId())
+                .title(n.getTitle())
+                .message(n.getMessage())
+                .type(n.getType() != null ? n.getType().name() : null)
+                .isRead(n.getIsRead())
+                .referenceId(n.getReferenceId())
+                .createdAt(n.getCreatedAt())
+                .build();
     }
 
     // ── HELPER ───────────────────────────────────────────────────
