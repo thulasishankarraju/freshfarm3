@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<link rel="icon" type="image/png" href="img/logo-icon.png">
-<title>Checkout — FarmFresh</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="img/logo-icon.png">
+  <title>Checkout — FarmFresh</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 <div id="toast-root"></div>
@@ -46,6 +46,13 @@
     <label>Coupon code (optional)</label>
     <input id="couponCode" placeholder="No /api/coupons endpoint exists — informational only">
 
+    <label>Receive delivery OTP via</label>
+    <select id="otpChannel">
+      <option value="BOTH">Email + SMS</option>
+      <option value="EMAIL">Email only</option>
+      <option value="PHONE">SMS only</option>
+    </select>
+
     <label>Payment method</label>
     <select id="paymentMethod">
       <option value="COD">Cash on delivery</option>
@@ -61,29 +68,29 @@
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 <script>
-// Fill in a Razorpay TEST key_id here to enable the online-payment path locally.
-// The backend never exposes razorpay.key-id over the API, so this must be set
-// manually and must match the key-id in the backend's application.properties.
-const RAZORPAY_KEY_ID = "rzp_test_your_key_id_here";
+  // Fill in a Razorpay TEST key_id here to enable the online-payment path locally.
+  // The backend never exposes razorpay.key-id over the API, so this must be set
+  // manually and must match the key-id in the backend's application.properties.
+  const RAZORPAY_KEY_ID = "rzp_test_your_key_id_here";
 
-if (requireAuth(["BUYER"])) { loadAddresses(); loadCartSummary(); }
+  if (requireAuth(["BUYER"])) { loadAddresses(); loadCartSummary(); }
 
-let selectedAddressId = null;
+  let selectedAddressId = null;
 
-async function loadAddresses() {
-  const box = document.getElementById("addressBox");
-  try {
-    const addresses = await api.myAddresses();
-    if (!addresses.length) {
-      box.innerHTML = `<p class="muted">No saved addresses yet.</p>`;
-      document.getElementById("newAddressForm").style.display = "block";
-      return;
-    }
-    const defaultAddr = addresses.find(a => a.default) || addresses[0];
-    selectedAddressId = defaultAddr.id;
-    document.getElementById("addressId").value = selectedAddressId;
+  async function loadAddresses() {
+    const box = document.getElementById("addressBox");
+    try {
+      const addresses = await api.myAddresses();
+      if (!addresses.length) {
+        box.innerHTML = `<p class="muted">No saved addresses yet.</p>`;
+        document.getElementById("newAddressForm").style.display = "block";
+        return;
+      }
+      const defaultAddr = addresses.find(a => a.default) || addresses[0];
+      selectedAddressId = defaultAddr.id;
+      document.getElementById("addressId").value = selectedAddressId;
 
-    box.innerHTML = `
+      box.innerHTML = `
       ${addresses.map(a => `
         <label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);font-weight:400;">
           <input type="radio" name="addrRadio" style="width:auto;margin-top:4px;" value="${a.id}" ${a.id === selectedAddressId ? "checked" : ""}>
@@ -94,115 +101,116 @@ async function loadAddresses() {
         </label>`).join("")}
       <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="document.getElementById('newAddressForm').style.display='block'">+ Add new address</button>
     `;
-    document.querySelectorAll('input[name="addrRadio"]').forEach(r => {
-      r.addEventListener("change", (e) => {
-        selectedAddressId = Number(e.target.value);
-        document.getElementById("addressId").value = selectedAddressId;
+      document.querySelectorAll('input[name="addrRadio"]').forEach(r => {
+        r.addEventListener("change", (e) => {
+          selectedAddressId = Number(e.target.value);
+          document.getElementById("addressId").value = selectedAddressId;
+        });
       });
-    });
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
-  }
-}
-
-document.getElementById("saveAddressBtn").addEventListener("click", async () => {
-  const alertBox = document.getElementById("newAddress-alert");
-  alertBox.innerHTML = "";
-  try {
-    const addr = await api.createAddress({
-      fullName: na_fullName.value.trim(),
-      mobileNumber: na_mobile.value.trim(),
-      addressLine: na_addressLine.value.trim(),
-      city: na_city.value.trim(),
-      state: na_state.value.trim(),
-      pincode: na_pincode.value.trim(),
-      isDefault: na_isDefault.checked
-    });
-    toast("Address saved");
-    document.getElementById("newAddressForm").style.display = "none";
-    selectedAddressId = addr.id;
-    document.getElementById("addressId").value = selectedAddressId;
-    loadAddresses();
-  } catch (e) {
-    alertBox.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
-  }
-});
-
-async function loadCartSummary() {
-  const box = document.getElementById("cartSummary");
-  try {
-    const cart = await api.getCart();
-    if (!cart.items || !cart.items.length) {
-      box.innerHTML = `<p class="muted">Your cart is empty. <a href="shop.html">Go shopping →</a></p>`;
-      document.querySelector("#checkoutForm button").disabled = true;
-      return;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
     }
-    box.innerHTML = `
+  }
+
+  document.getElementById("saveAddressBtn").addEventListener("click", async () => {
+    const alertBox = document.getElementById("newAddress-alert");
+    alertBox.innerHTML = "";
+    try {
+      const addr = await api.createAddress({
+        fullName: na_fullName.value.trim(),
+        mobileNumber: na_mobile.value.trim(),
+        addressLine: na_addressLine.value.trim(),
+        city: na_city.value.trim(),
+        state: na_state.value.trim(),
+        pincode: na_pincode.value.trim(),
+        isDefault: na_isDefault.checked
+      });
+      toast("Address saved");
+      document.getElementById("newAddressForm").style.display = "none";
+      selectedAddressId = addr.id;
+      document.getElementById("addressId").value = selectedAddressId;
+      loadAddresses();
+    } catch (e) {
+      alertBox.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
+  });
+
+  async function loadCartSummary() {
+    const box = document.getElementById("cartSummary");
+    try {
+      const cart = await api.getCart();
+      if (!cart.items || !cart.items.length) {
+        box.innerHTML = `<p class="muted">Your cart is empty. <a href="shop.html">Go shopping →</a></p>`;
+        document.querySelector("#checkoutForm button").disabled = true;
+        return;
+      }
+      box.innerHTML = `
       ${cart.items.map(i => `<div class="flex-between"><span>${i.productName} × ${i.quantity}</span><span>${money(i.subtotal)}</span></div>`).join("")}
       <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
       <div class="flex-between"><strong>Total</strong><strong>${money(cart.totalAmount)}</strong></div>
     `;
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
-  }
-}
-
-document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const box = document.getElementById("checkout-alert");
-  box.innerHTML = "";
-  const paymentMethod = document.getElementById("paymentMethod").value;
-  if (!document.getElementById("addressId").value) {
-    box.innerHTML = `<div class="alert alert-err">Please add or select a delivery address first.</div>`;
-    return;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
 
-  try {
-    const order = await api.checkout({
-      addressId: Number(document.getElementById("addressId").value),
-      couponCode: document.getElementById("couponCode").value.trim() || undefined,
-      paymentMethod
-    });
-
-    if (paymentMethod === "COD") {
-      location.href = `order-success.html?orderId=${order.orderId}`;
+  document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const box = document.getElementById("checkout-alert");
+    box.innerHTML = "";
+    const paymentMethod = document.getElementById("paymentMethod").value;
+    if (!document.getElementById("addressId").value) {
+      box.innerHTML = `<div class="alert alert-err">Please add or select a delivery address first.</div>`;
       return;
     }
 
-    // RAZORPAY path
-    const paymentOrder = await api.createPaymentOrder({
-      orderId: order.orderId,
-      amount: Math.round(order.totalAmount)
-    });
+    try {
+      const order = await api.checkout({
+        addressId: Number(document.getElementById("addressId").value),
+        couponCode: document.getElementById("couponCode").value.trim() || undefined,
+        paymentMethod,
+        otpChannel: document.getElementById("otpChannel").value
+      });
 
-    const rzp = new Razorpay({
-      key: RAZORPAY_KEY_ID,
-      amount: paymentOrder.amount ? paymentOrder.amount * 100 : Math.round(order.totalAmount * 100),
-      currency: paymentOrder.currency || "INR",
-      order_id: paymentOrder.razorpayOrderId,
-      name: "FarmFresh",
-      description: `Order ${order.orderNumber}`,
-      handler: async function (response) {
-        try {
-          await api.verifyPayment({
-            orderId: order.orderId,
-            razorpayOrderId: response.razorpay_order_id,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature
-          });
-          location.href = `order-success.html?orderId=${order.orderId}`;
-        } catch (err) {
-          box.innerHTML = `<div class="alert alert-err">Payment captured but verification failed: ${err.message}</div>`;
-        }
-      },
-      theme: { color: "#2F5233" }
-    });
-    rzp.open();
+      if (paymentMethod === "COD") {
+        location.href = `order-success.html?orderId=${order.orderId}`;
+        return;
+      }
 
-  } catch (err) {
-    box.innerHTML = `<div class="alert alert-err">${err.message}</div>`;
-  }
-});
+      // RAZORPAY path
+      const paymentOrder = await api.createPaymentOrder({
+        orderId: order.orderId,
+        amount: Math.round(order.totalAmount)
+      });
+
+      const rzp = new Razorpay({
+        key: RAZORPAY_KEY_ID,
+        amount: paymentOrder.amount ? paymentOrder.amount * 100 : Math.round(order.totalAmount * 100),
+        currency: paymentOrder.currency || "INR",
+        order_id: paymentOrder.razorpayOrderId,
+        name: "FarmFresh",
+        description: `Order ${order.orderNumber}`,
+        handler: async function (response) {
+          try {
+            await api.verifyPayment({
+              orderId: order.orderId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature
+            });
+            location.href = `order-success.html?orderId=${order.orderId}`;
+          } catch (err) {
+            box.innerHTML = `<div class="alert alert-err">Payment captured but verification failed: ${err.message}</div>`;
+          }
+        },
+        theme: { color: "#2F5233" }
+      });
+      rzp.open();
+
+    } catch (err) {
+      box.innerHTML = `<div class="alert alert-err">${err.message}</div>`;
+    }
+  });
 </script>
 </body>
 </html>

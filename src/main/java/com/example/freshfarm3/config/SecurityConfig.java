@@ -64,15 +64,22 @@ public class SecurityConfig {
                                 "/", "/index.html", "/shop.html", "/cart.html",
                                 "/checkout.html", "/login.html", "/register.html",
                                 "/product-detail.html", "/order-success.html",
-                                "/farmer/**", "/admin/**",
-                                "/css/**", "/js/**", "/images/**", "/favicon.ico"
+                                "/orders.html", "/subscriptions.html", "/forgot-password.html",
+                                "/farmer/**", "/admin/**", "/agent/**",
+                                "/css/**", "/js/**", "/images/**", "/img/**", "/favicon.ico"
                         ).permitAll()
 
                         .requestMatchers("/api/buyers/**").hasRole("BUYER")
                         .requestMatchers("/api/farmers/**").hasAnyRole("FARMER", "ADMIN")
 
                         .requestMatchers("/api/cart/**").hasRole("BUYER")
+
+                        // More specific /api/orders/** rules MUST come before the general one below,
+                        // since Spring Security uses first-match-wins.
+                        .requestMatchers("/api/orders/farmer/**").hasAnyRole("FARMER", "ADMIN")
+                        .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/orders/**").hasAnyRole("BUYER", "ADMIN")
+
                         .requestMatchers("/api/addresses/**").hasRole("BUYER")
 
                         .requestMatchers("/api/payments/**").hasRole("BUYER")

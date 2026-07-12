@@ -10,8 +10,8 @@ const API_BASE = "http://localhost:8080";
 function authHeaders(extra = {}) {
   const token = localStorage.getItem("ff_token");
   return token
-    ? { ...extra, Authorization: `Bearer ${token}` }
-    : { ...extra };
+      ? { ...extra, Authorization: `Bearer ${token}` }
+      : { ...extra };
 }
 
 /**
@@ -46,15 +46,15 @@ async function request(path, { method = "GET", body, isForm = false, auth = true
     res = await fetch(`${API_BASE}${path}`, opts);
   } catch (networkErr) {
     throw new Error(
-      "Can't reach the backend at " + API_BASE +
-      ". Make sure the Spring Boot app is running locally on port 8080."
+        "Can't reach the backend at " + API_BASE +
+        ". Make sure the Spring Boot app is running locally on port 8080."
     );
   }
 
   const contentType = res.headers.get("content-type") || "";
   const data = contentType.includes("application/json")
-    ? await res.json().catch(() => null)
-    : null;
+      ? await res.json().catch(() => null)
+      : null;
 
   if (!res.ok) {
     const msg = (data && (data.message || data.error)) || `Request failed (${res.status})`;
@@ -101,6 +101,9 @@ const api = {
   // ---- Forgot password ----
   forgotPasswordSendOtp: (payload) => request("/api/auth/forgot-password/send-otp", { method: "POST", body: payload, auth: false }),
   resetPassword: (payload) => request("/api/auth/forgot-password/reset", { method: "POST", body: payload, auth: false }),
+
+  // ---- Categories ----
+  listCategories: () => request("/api/categories", { auth: false }),
 
   // ---- Products (public GETs, farmer-only writes) ----
   listProducts: (params = "") => request(`/api/products${params}`, { auth: false }),
@@ -152,12 +155,11 @@ const api = {
 
   // ---- Delivery ----
   assignDelivery: (payload) => request("/api/delivery/assign", { method: "POST", body: payload }),
-  // NOTE: pickup/out-for-delivery take NO body or param — they act on the
-  // authenticated agent's single current active delivery.
-  pickupDelivery: () => request("/api/delivery/pickup", { method: "PUT" }),
-  outForDelivery: () => request("/api/delivery/out-for-delivery", { method: "PUT" }),
-  // NOTE: complete takes only an `otp` query param — no orderId.
-  completeDelivery: (otp) => request(`/api/delivery/complete?otp=${encodeURIComponent(otp)}`, { method: "PUT" }),
+  // Each action now targets a specific delivery by ID, so an agent with
+  // multiple assigned deliveries can act on any of them independently.
+  pickupDelivery: (deliveryId) => request(`/api/delivery/${deliveryId}/pickup`, { method: "PUT" }),
+  outForDelivery: (deliveryId) => request(`/api/delivery/${deliveryId}/out-for-delivery`, { method: "PUT" }),
+  completeDelivery: (deliveryId, otp) => request(`/api/delivery/${deliveryId}/complete?otp=${encodeURIComponent(otp)}`, { method: "PUT" }),
   myDeliveries: () => request("/api/delivery/my-deliveries"),
   trackDelivery: (orderId) => request(`/api/delivery/track/${orderId}`),
 
@@ -182,4 +184,5 @@ const api = {
   approveFarmer: (id) => request(`/api/admin/farmers/${id}/approve`, { method: "PUT" }),
   rejectFarmer: (id) => request(`/api/admin/farmers/${id}/reject`, { method: "PUT" }),
   adminOrders: () => request("/api/admin/orders"),
+  adminConfirmOrder: (id) => request(`/api/admin/orders/${id}/confirm`, { method: "PUT" }),
 };

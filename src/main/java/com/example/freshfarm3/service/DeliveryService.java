@@ -12,6 +12,8 @@ import com.example.freshfarm3.repository.DeliveryAgentRepository;
 import com.example.freshfarm3.repository.DeliveryRepository;
 import com.example.freshfarm3.repository.NotificationRepository;
 import com.example.freshfarm3.repository.OrderRepository;
+import com.example.freshfarm3.repository.UserRepository;
+import com.example.freshfarm3.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ public class DeliveryService {
     private final DeliveryAgentRepository deliveryAgentRepository;
     private final OrderRepository         orderRepository;
     private final NotificationRepository  notificationRepository;
+    private final UserRepository          userRepository;
     private final EmailService            emailService;
     private final SmsService              smsService;
 
@@ -106,8 +109,8 @@ public class DeliveryService {
 
     // ── AGENT: PICKUP ─────────────────────────────────────────────
     @Transactional
-    public DeliveryResponse markPickedUp(String agentEmail) {
-        Delivery delivery = getActiveDeliveryForAgent(agentEmail);
+    public DeliveryResponse markPickedUp(String agentEmail, Long deliveryId) {
+        Delivery delivery = getDeliveryForAgent(agentEmail, deliveryId);
 
         if (delivery.getDeliveryStatus() != DeliveryStatus.ASSIGNED) {
             throw new RuntimeException("Can only pick up an ASSIGNED delivery");
@@ -118,14 +121,29 @@ public class DeliveryService {
         deliveryRepository.save(delivery);
 
         Order order = delivery.getOrder();
+
+        // Notify buyer — this was previously missing entirely.
+        saveNotification(
+                order.getBuyer().getUser(),
+                "Order Picked Up 📦",
+                "Your order #" + order.getOrderNumber() + " has been picked up by the delivery agent and will be on its way shortly."
+        );
+        emailService.send(
+                order.getBuyer().getUser().getEmail(),
+                "FarmFresh — Order Picked Up",
+                "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
+                        "Your order #" + order.getOrderNumber() + " has been picked up by the delivery agent.\n\n" +
+                        "Team FarmFresh"
+        );
+
         log.info("Order picked up: {}", order.getOrderNumber());
         return mapToResponse(delivery, true);   // show OTP to agent after pickup
     }
 
     // ── AGENT: OUT FOR DELIVERY ───────────────────────────────────
     @Transactional
-    public DeliveryResponse markOutForDelivery(String agentEmail) {
-        Delivery delivery = getActiveDeliveryForAgent(agentEmail);
+    public DeliveryResponse markOutForDelivery(String agentEmail, Long deliveryId) {
+        Delivery delivery = getDeliveryForAgent(agentEmail, deliveryId);
 
         if (delivery.getDeliveryStatus() != DeliveryStatus.PICKED_UP) {
             throw new RuntimeException("Must be in PICKED_UP state before going OUT_FOR_DELIVERY");
@@ -144,6 +162,14 @@ public class DeliveryService {
                 "Your Order Is On The Way! 🚚",
                 "Order #" + order.getOrderNumber() + " is out for delivery. Prepare your OTP."
         );
+        emailService.send(
+                order.getBuyer().getUser().getEmail(),
+                "FarmFresh — Order Out For Delivery",
+                "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
+                        "Your order #" + order.getOrderNumber() + " is out for delivery. " +
+                        "Please have your OTP ready to share with the delivery agent.\n\n" +
+                        "Team FarmFresh"
+        );
 
         log.info("Order out for delivery: {}", order.getOrderNumber());
         return mapToResponse(delivery, true);
@@ -151,8 +177,8 @@ public class DeliveryService {
 
     // ── AGENT: COMPLETE DELIVERY (OTP Verification) ───────────────
     @Transactional
-    public DeliveryResponse completeDelivery(String agentEmail, String enteredOtp) {
-        Delivery delivery = getActiveDeliveryForAgent(agentEmail);
+    public DeliveryResponse completeDelivery(String agentEmail, Long deliveryId, String enteredOtp) {
+        Delivery delivery = getDeliveryForAgent(agentEmail, deliveryId);
 
         if (delivery.getDeliveryStatus() != DeliveryStatus.OUT_FOR_DELIVERY) {
             throw new RuntimeException("Delivery must be OUT_FOR_DELIVERY to complete it");
@@ -213,20 +239,22 @@ public class DeliveryService {
                 .orElseThrow(() -> new RuntimeException("Delivery agent not found: " + email));
     }
 
-    private Delivery getActiveDeliveryForAgent(String agentEmail) {
+    private Delivery getDeliveryForAgent(String agentEmail, Long deliveryId) {
         DeliveryAgent agent = getAgent(agentEmail);
-        return deliveryRepository
-                .findByDeliveryAgentAndDeliveryStatusNot(agent, DeliveryStatus.DELIVERED)
-                .stream()
-                .filter(d -> d.getDeliveryStatus() != DeliveryStatus.CANCELLED)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No active delivery found for this agent"));
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new RuntimeException("Delivery not found: " + deliveryId));
+
+        if (!delivery.getDeliveryAgent().getId().equals(agent.getId())) {
+            throw new RuntimeException("This delivery is not assigned to you");
+        }
+        return delivery;
     }
 
     private void notifyBuyer(Order order, DeliveryAgent agent, String otp) {
         String buyerEmail = order.getBuyer().getUser().getEmail();
         String buyerPhone = order.getBuyer().getUser().getPhone();
         String agentName  = agent.getUser().getFullName();
+        String channel     = order.getOtpChannel() != null ? order.getOtpChannel() : "BOTH";
 
         saveNotification(
                 order.getBuyer().getUser(),
@@ -235,18 +263,23 @@ public class DeliveryService {
                         ". Your OTP: " + otp
         );
 
-        emailService.send(
-                buyerEmail,
-                "FarmFresh — Your Delivery Agent Is Assigned",
-                "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
-                        "Your order #" + order.getOrderNumber() + " has been assigned to " +
-                        agentName + " (" + agent.getVehicleNumber() + ").\n\n" +
-                        "Your delivery OTP is: " + otp + "\n" +
-                        "Please share this OTP ONLY with the delivery agent at the time of delivery.\n\n" +
-                        "Estimated delivery time: within 3 hours.\n\nTeam FarmFresh"
-        );
+        boolean sendEmail = channel.equals("EMAIL") || channel.equals("BOTH");
+        boolean sendSms   = channel.equals("PHONE") || channel.equals("BOTH");
 
-        if (buyerPhone != null) {
+        if (sendEmail) {
+            emailService.send(
+                    buyerEmail,
+                    "FarmFresh — Your Delivery Agent Is Assigned",
+                    "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
+                            "Your order #" + order.getOrderNumber() + " has been assigned to " +
+                            agentName + " (" + agent.getVehicleNumber() + ").\n\n" +
+                            "Your delivery OTP is: " + otp + "\n" +
+                            "Please share this OTP ONLY with the delivery agent at the time of delivery.\n\n" +
+                            "Estimated delivery time: within 3 hours.\n\nTeam FarmFresh"
+            );
+        }
+
+        if (sendSms && buyerPhone != null) {
             smsService.send("+91" + buyerPhone,
                     "FarmFresh: Your OTP for order #" + order.getOrderNumber() +
                             " is " + otp + ". Share only with your delivery agent.");
@@ -306,6 +339,16 @@ public class DeliveryService {
                     "Order #" + order.getOrderNumber() + " has been delivered to the buyer."
             );
         });
+
+        // Notify admins — so admin knows the delivery agent has confirmed delivery.
+        userRepository.findByRole(Role.ADMIN).forEach(admin ->
+                saveNotification(
+                        admin,
+                        "Delivery Completed ✅",
+                        "Order #" + order.getOrderNumber() + " was delivered by " +
+                                agent.getUser().getFullName() + " and confirmed via OTP."
+                )
+        );
     }
 
     private void saveNotification(com.example.freshfarm3.entity.User user, String title, String message) {

@@ -63,14 +63,25 @@ public class ProductService {
                 .farmer(farmer)
                 .build();
 
+        // FIX: previously built with `new ProductImage()`, which bypasses
+        // Lombok's @Builder.Default — displayOrder/isPrimary stayed NULL and
+        // violated the NOT NULL columns on product_images, causing a silent
+        // 500 on every product-with-images creation. Now uses the builder
+        // (with explicit values, since @Builder.Default still requires it
+        // when other fields are also set via the builder) so both columns
+        // are always populated.
         if (images != null && !images.isEmpty()) {
-            images.forEach(file -> {
+            for (int i = 0; i < images.size(); i++) {
+                MultipartFile file = images.get(i);
                 String url = fileUploadService.uploadFile(file);
-                ProductImage pi = new ProductImage();
-                pi.setImageUrl(url);
-                pi.setProduct(product);
+                ProductImage pi = ProductImage.builder()
+                        .imageUrl(url)
+                        .product(product)
+                        .displayOrder(i)
+                        .isPrimary(i == 0) // first uploaded image becomes primary
+                        .build();
                 product.getImages().add(pi);
-            });
+            }
         }
 
         Product saved = productRepository.save(product);

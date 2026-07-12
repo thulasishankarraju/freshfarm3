@@ -46,10 +46,15 @@ public class  FileUploadService {
     @Value("${app.upload.base-url:/uploads}")
     private String baseUrl;
 
-    private static final long MAX_FILE_SIZE = 5L * 1024 * 1024; // 5 MB
+    private static final long MAX_FILE_SIZE = 10L * 1024 * 1024; // 10 MB (raised from 5MB)
 
+    // Expanded to cover the image formats farmers are likely to actually
+    // upload from phones/cameras — was previously JPEG/PNG/WEBP only, which
+    // rejected GIF, BMP, TIFF, and HEIC/HEIF (common on iPhones) with a
+    // "Unsupported file type" ValidationException.
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "image/jpeg", "image/jpg", "image/png", "image/webp"
+            "image/jpeg", "image/jpg", "image/png", "image/webp",
+            "image/gif", "image/bmp", "image/tiff", "image/heic", "image/heif"
     );
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -184,11 +189,11 @@ public class  FileUploadService {
             throw new ValidationException("Uploaded file is empty");
         }
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new ValidationException("File exceeds the 5MB size limit: " + file.getOriginalFilename());
+            throw new ValidationException("File exceeds the 10MB size limit: " + file.getOriginalFilename());
         }
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
-            throw new ValidationException("Unsupported file type (allowed: JPEG, PNG, WEBP): " + contentType);
+            throw new ValidationException("Unsupported file type (allowed: JPEG, PNG, WEBP, GIF, BMP, TIFF, HEIC): " + contentType);
         }
     }
 

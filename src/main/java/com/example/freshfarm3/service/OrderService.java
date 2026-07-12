@@ -100,6 +100,7 @@ public class OrderService {
                 .paymentStatus("PENDING")
                 .orderStatus(OrderStatus.PENDING)
                 .orderDate(LocalDateTime.now())
+                .otpChannel(normalizeOtpChannel(req.getOtpChannel()))
                 .items(new ArrayList<>())
                 .build();
 
@@ -227,6 +228,15 @@ public class OrderService {
     }
 
     // ── NOTIFICATIONS ─────────────────────────────────────────────
+    private String normalizeOtpChannel(String requested) {
+        if (requested == null) return "BOTH";
+        String upper = requested.trim().toUpperCase();
+        return switch (upper) {
+            case "EMAIL", "PHONE", "BOTH" -> upper;
+            default -> "BOTH";
+        };
+    }
+
     private void saveOrderNotifications(Order order, Buyer buyer, List<CartItem> cartItems) {
         // Notify buyer
         Notification buyerNotif = new Notification();

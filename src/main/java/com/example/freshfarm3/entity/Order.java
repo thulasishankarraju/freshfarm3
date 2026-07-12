@@ -48,6 +48,13 @@ public class Order extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime orderDate;
 
+    /**
+     * Buyer's preferred channel for receiving the delivery OTP: "EMAIL", "PHONE", or "BOTH".
+     * Set at checkout time; defaults to "BOTH" if the buyer doesn't choose.
+     */
+    @Column(name = "otp_channel", length = 10)
+    private String otpChannel;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
