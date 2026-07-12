@@ -28,10 +28,10 @@ public class AdminSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    private static final String ADMIN_NAME     = "Super Admin";
-    private static final String ADMIN_EMAIL    = "admin@farmfresh.com";
-    private static final String ADMIN_PHONE    = "9999999999";
-    private static final String ADMIN_PASSWORD = "Admin@123"; // change this
+    private static final String ADMIN_NAME     = "Freshfarm";
+    private static final String ADMIN_EMAIL    = "freshfarmfreshfarm3@gmail.com";
+    private static final String ADMIN_PHONE    = "8978396442";
+    private static final String ADMIN_PASSWORD = "Freshfarm@131107"; // change this
 
     @Override
     public void run(String... args) {
