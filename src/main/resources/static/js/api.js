@@ -163,6 +163,12 @@ const api = {
   myDeliveries: () => request("/api/delivery/my-deliveries"),
   trackDelivery: (orderId) => request(`/api/delivery/track/${orderId}`),
 
+  // ---- Notifications ----
+  myNotifications: () => request("/api/notifications"),
+  unreadNotificationCount: () => request("/api/notifications/unread-count"),
+  markNotificationRead: (id) => request(`/api/notifications/${id}/read`, { method: "PUT" }),
+  markAllNotificationsRead: () => request("/api/notifications/read-all", { method: "PUT" }),
+
   // ---- Reviews ----
   createReview: (payload) => request("/api/reviews", { method: "POST", body: payload }),
   productReviews: (productId) => request(`/api/reviews/product/${productId}`, { auth: false }),

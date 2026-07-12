@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<link rel="icon" type="image/png" href="img/logo-icon.png">
-<title>My orders — FarmFresh</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="img/logo-icon.png">
+  <title>My orders — FarmFresh</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="toast-root"></div>
@@ -37,17 +37,17 @@
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 <script>
-if (requireAuth(["BUYER"])) load();
+  if (requireAuth(["BUYER"])) load();
 
-async function load() {
-  const box = document.getElementById("ordersBox");
-  try {
-    const orders = await api.myOrders();
-    if (!orders.length) {
-      box.innerHTML = `<div class="empty"><h3>No orders yet</h3><p><a href="shop.html">Start shopping →</a></p></div>`;
-      return;
-    }
-    box.innerHTML = orders.map(o => `
+  async function load() {
+    const box = document.getElementById("ordersBox");
+    try {
+      const orders = await api.myOrders();
+      if (!orders.length) {
+        box.innerHTML = `<div class="empty"><h3>No orders yet</h3><p><a href="shop.html">Start shopping →</a></p></div>`;
+        return;
+      }
+      box.innerHTML = orders.map(o => `
       <div class="card" style="margin-bottom:16px;">
         <div class="flex-between">
           <div>
@@ -65,8 +65,8 @@ async function load() {
                 <td>${money(i.subtotal)}</td>
                 <td>
                   ${o.orderStatus === 'DELIVERED'
-                    ? `<button class="btn btn-outline btn-sm" onclick="openReview(${i.productId}, ${o.orderId})">Review</button>`
-                    : ''}
+              ? `<button class="btn btn-outline btn-sm" onclick="openReview(${i.productId}, ${o.orderId})">Review</button>`
+              : ''}
                 </td>
               </tr>`).join("")}
           </tbody>
@@ -74,54 +74,79 @@ async function load() {
         <div style="margin-top:10px;display:flex;gap:10px;">
           <a class="btn btn-outline btn-sm" href="#" onclick="trackOrder(${o.orderId}); return false;">Track delivery</a>
           ${['PENDING','CONFIRMED','PROCESSING'].includes(o.orderStatus)
-            ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder(${o.orderId})">Cancel order</button>`
-            : ''}
+              ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder(${o.orderId})">Cancel order</button>`
+              : ''}
         </div>
         <div id="track-${o.orderId}" class="muted" style="margin-top:8px;"></div>
       </div>`).join("");
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
-}
 
-async function cancelOrder(orderId) {
-  if (!confirm("Cancel this order?")) return;
-  try {
-    await api.cancelOrder(orderId);
-    toast("Order cancelled");
-    load();
-  } catch (e) { toast(e.message, "err"); }
-}
-
-async function trackOrder(orderId) {
-  const box = document.getElementById(`track-${orderId}`);
-  try {
-    const d = await api.trackDelivery(orderId);
-    box.innerHTML = `Delivery status: <strong>${d.deliveryStatus}</strong>${d.agentName ? ` · Agent: ${d.agentName}` : ''}`;
-  } catch (e) {
-    box.innerHTML = `<span class="muted">No delivery assigned yet.</span>`;
+  async function cancelOrder(orderId) {
+    if (!confirm("Cancel this order?")) return;
+    try {
+      await api.cancelOrder(orderId);
+      toast("Order cancelled");
+      load();
+    } catch (e) { toast(e.message, "err"); }
   }
-}
 
-function openReview(productId, orderId) {
-  document.getElementById("rv_productId").value = productId;
-  document.getElementById("rv_orderId").value = orderId;
-  document.getElementById("reviewModal").style.display = "block";
-}
+  async function trackOrder(orderId) {
+    const box = document.getElementById(`track-${orderId}`);
+    try {
+      const d = await api.trackDelivery(orderId);
 
-document.getElementById("submitReviewBtn").addEventListener("click", async () => {
-  try {
-    await api.createReview({
-      productId: Number(document.getElementById("rv_productId").value),
-      orderId: Number(document.getElementById("rv_orderId").value),
-      rating: Number(document.getElementById("rv_rating").value),
-      reviewTitle: document.getElementById("rv_title").value.trim(),
-      reviewComment: document.getElementById("rv_comment").value.trim()
-    });
-    toast("Review submitted");
-    document.getElementById("reviewModal").style.display = "none";
-  } catch (e) { toast(e.message, "err"); }
-});
+      if (d.deliveryStatus === "DELIVERED") {
+        box.innerHTML = `
+        <div class="alert" style="background:#E4EEE2;color:var(--primary-d);border-left:4px solid var(--primary);padding:10px 12px;border-radius:8px;">
+          ✅ Delivered${d.deliveredAt ? ` on ${new Date(d.deliveredAt).toLocaleString()}` : ""} by <strong>${d.agentName || "your delivery agent"}</strong>.
+        </div>`;
+        return;
+      }
+
+      const agentLine = d.agentName ? `
+        <div>Agent: <strong>${d.agentName}</strong>${d.agentPhone ? ` · <a href="tel:${d.agentPhone}">${d.agentPhone}</a>` : ""}</div>
+        ${d.vehicleNumber ? `<div class="muted" style="font-size:.85rem;">${d.vehicleType || "Vehicle"} · ${d.vehicleNumber}</div>` : ""}` : "";
+
+      const etaLine = d.estimatedDeliveryTime
+              ? `<div class="muted" style="font-size:.85rem;">Estimated delivery: ${new Date(d.estimatedDeliveryTime).toLocaleString()}</div>`
+              : "";
+
+      const otpHint = (d.deliveryStatus === "OUT_FOR_DELIVERY")
+              ? `<div class="muted" style="font-size:.85rem;">Share the OTP we sent you (email/SMS) with the agent to confirm delivery.</div>`
+              : "";
+
+      box.innerHTML = `
+      <div>Delivery status: <strong>${d.deliveryStatus}</strong></div>
+      ${agentLine}
+      ${etaLine}
+      ${otpHint}`;
+    } catch (e) {
+      box.innerHTML = `<span class="muted">No delivery assigned yet.</span>`;
+    }
+  }
+
+  function openReview(productId, orderId) {
+    document.getElementById("rv_productId").value = productId;
+    document.getElementById("rv_orderId").value = orderId;
+    document.getElementById("reviewModal").style.display = "block";
+  }
+
+  document.getElementById("submitReviewBtn").addEventListener("click", async () => {
+    try {
+      await api.createReview({
+        productId: Number(document.getElementById("rv_productId").value),
+        orderId: Number(document.getElementById("rv_orderId").value),
+        rating: Number(document.getElementById("rv_rating").value),
+        reviewTitle: document.getElementById("rv_title").value.trim(),
+        reviewComment: document.getElementById("rv_comment").value.trim()
+      });
+      toast("Review submitted");
+      document.getElementById("reviewModal").style.display = "none";
+    } catch (e) { toast(e.message, "err"); }
+  });
 </script>
 </body>
 </html>
