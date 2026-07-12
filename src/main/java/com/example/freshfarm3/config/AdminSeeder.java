@@ -31,7 +31,7 @@ public class AdminSeeder implements CommandLineRunner {
     private static final String ADMIN_NAME     = "Super Admin";
     private static final String ADMIN_EMAIL    = "admin@farmfresh.com";
     private static final String ADMIN_PHONE    = "9999999999";
-    private static final String ADMIN_PASSWORD = "Admin@123"; // change this
+    private static final String ADMIN_PASSWORD = "git "; // change this
 
     @Override
     public void run(String... args) {
