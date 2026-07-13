@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="img/logo-icon.png">
+<title>My orders — FarmFresh</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="toast-root"></div>
+<div id="nav"></div>
+
+<div class="container page">
+  <h2>My orders</h2>
+  <div id="ordersBox"><p class="muted">Loading…</p></div>
+</div>
+
+<div id="reviewModal" class="card" style="display:none;position:fixed;top:15%;left:50%;transform:translateX(-50%);width:90%;max-width:420px;z-index:200;">
+  <h3>Leave a review</h3>
+  <input type="hidden" id="rv_productId">
+  <input type="hidden" id="rv_orderId">
+  <label>Rating</label>
+  <div class="star-picker" id="rv_stars" data-value="5"></div>
+  <label>Title</label>
+  <input id="rv_title" maxlength="150">
+  <label>Comment</label>
+  <textarea id="rv_comment" maxlength="2000"></textarea>
+  <div style="display:flex;gap:10px;margin-top:14px;">
+    <button class="btn btn-primary" id="submitReviewBtn">Submit review</button>
+    <button class="btn btn-outline" onclick="document.getElementById('reviewModal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<div id="agentReviewModal" class="card" style="display:none;position:fixed;top:15%;left:50%;transform:translateX(-50%);width:90%;max-width:420px;z-index:200;">
+  <h3>Rate your delivery agent</h3>
+  <input type="hidden" id="arv_orderId">
+  <label>Rating</label>
+  <div class="star-picker" id="arv_stars" data-value="5"></div>
+  <label>Comment (optional)</label>
+  <textarea id="arv_comment" maxlength="1000" placeholder="How was your delivery experience?"></textarea>
+  <div style="display:flex;gap:10px;margin-top:14px;">
+    <button class="btn btn-primary" id="submitAgentReviewBtn">Submit rating</button>
+    <button class="btn btn-outline" onclick="document.getElementById('agentReviewModal').style.display='none'">Cancel</button>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+if (requireAuth(["BUYER"])) load();
+
+let reviewedProducts = new Set();  // "orderId:productId"
+let reviewedAgentOrders = new Set(); // orderId
+
+async function load() {
+  const box = document.getElementById("ordersBox");
+  try {
+    const [orders, myReviews, myAgentReviews] = await Promise.all([
+      api.myOrders(),
+      api.myReviews().catch(() => []),
+      api.myAgentReviews().catch(() => [])
+    ]);
+
+    reviewedProducts = new Set(myReviews.map(r => `${r.orderId}:${r.productId}`));
+    reviewedAgentOrders = new Set(myAgentReviews.map(r => r.orderId));
+
+    if (!orders.length) {
+      box.innerHTML = `<div class="empty"><h3>No orders yet</h3><p><a href="shop.html">Start shopping →</a></p></div>`;
+      return;
+    }
+    box.innerHTML = orders.map(o => `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="flex-between">
+          <div>
+            <strong>${o.orderNumber}</strong>
+            <span class="badge badge-active">${o.orderStatus}</span>
+            <span class="muted">· ${o.paymentStatus}</span>
+          </div>
+          <strong>${money(o.totalAmount)}</strong>
+        </div>
+        <table style="margin-top:10px;">
+          <tbody>
+            ${o.items.map(i => `
+              <tr>
+                <td>${i.productName} × ${formatQty(i.quantity, i.unitType)}</td>
+                <td>${money(i.subtotal)}</td>
+                <td>
+                  ${o.orderStatus === 'DELIVERED'
+                    ? (reviewedProducts.has(`${o.orderId}:${i.productId}`)
+                        ? `<span class="muted" style="font-size:.82rem;">✓ Reviewed</span>`
+                        : `<button class="btn btn-outline btn-sm" onclick="openReview(${i.productId}, ${o.orderId})">Review</button>`)
+                    : ''}
+                </td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+        <div class="muted" style="font-size:.85rem;margin-top:6px;">
+          Products: ${money(o.subtotal)} + Delivery: ${money(o.deliveryCharge)} + Platform fee: ${money(o.platformFee)}${Number(o.tipAmount) > 0 ? ` + Agent tip: ${money(o.tipAmount)}` : ''}
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="btn btn-outline btn-sm" href="#" onclick="trackOrder(${o.orderId}); return false;">Track delivery</a>
+          ${['PENDING','CONFIRMED','PROCESSING'].includes(o.orderStatus)
+            ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder(${o.orderId})">Cancel order</button>`
+            : ''}
+          ${o.orderStatus === 'DELIVERED'
+            ? (reviewedAgentOrders.has(o.orderId)
+                ? `<span class="muted" style="font-size:.82rem;align-self:center;">✓ Delivery agent rated</span>`
+                : `<button class="btn btn-outline btn-sm" onclick="openAgentReview(${o.orderId})">Rate delivery agent</button>`)
+            : ''}
+        </div>
+        <div id="track-${o.orderId}" class="muted" style="margin-top:8px;"></div>
+      </div>`).join("");
+  } catch (e) {
+    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+async function cancelOrder(orderId) {
+  if (!confirm("Cancel this order?")) return;
+  try {
+    await api.cancelOrder(orderId);
+    toast("Order cancelled");
+    load();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+async function trackOrder(orderId) {
+  const box = document.getElementById(`track-${orderId}`);
+  try {
+    const d = await api.trackDelivery(orderId);
+
+    if (d.deliveryStatus === "DELIVERED") {
+      box.innerHTML = `
+        <div class="alert" style="background:#E4EEE2;color:var(--primary-d);border-left:4px solid var(--primary);padding:10px 12px;border-radius:8px;">
+          ✅ Delivered${d.deliveredAt ? ` on ${new Date(d.deliveredAt).toLocaleString()}` : ""} by <strong>${d.agentName || "your delivery agent"}</strong>.
+        </div>`;
+      return;
+    }
+
+    const agentLine = d.agentName ? `
+        <div>Agent: <strong>${d.agentName}</strong>${d.agentPhone ? ` · <a href="tel:${d.agentPhone}">${d.agentPhone}</a>` : ""}</div>
+        ${d.vehicleNumber ? `<div class="muted" style="font-size:.85rem;">${d.vehicleType || "Vehicle"} · ${d.vehicleNumber}</div>` : ""}` : "";
+
+    const etaLine = d.estimatedDeliveryTime
+        ? `<div class="muted" style="font-size:.85rem;">Estimated delivery: ${new Date(d.estimatedDeliveryTime).toLocaleString()}</div>`
+        : "";
+
+    const otpHint = (d.deliveryStatus === "OUT_FOR_DELIVERY")
+        ? `<div class="muted" style="font-size:.85rem;">Share the OTP we sent you (email/SMS) with the agent to confirm delivery.</div>`
+        : "";
+
+    box.innerHTML = `
+      <div>Delivery status: <strong>${d.deliveryStatus}</strong></div>
+      ${agentLine}
+      ${etaLine}
+      ${otpHint}`;
+  } catch (e) {
+    box.innerHTML = `<span class="muted">No delivery assigned yet.</span>`;
+  }
+}
+
+function openReview(productId, orderId) {
+  document.getElementById("rv_productId").value = productId;
+  document.getElementById("rv_orderId").value = orderId;
+  document.getElementById("rv_title").value = "";
+  document.getElementById("rv_comment").value = "";
+  renderStars("rv_stars", 5);
+  document.getElementById("reviewModal").style.display = "block";
+}
+
+document.getElementById("submitReviewBtn").addEventListener("click", async () => {
+  try {
+    await api.createReview({
+      productId: Number(document.getElementById("rv_productId").value),
+      orderId: Number(document.getElementById("rv_orderId").value),
+      rating: Number(document.getElementById("rv_stars").dataset.value),
+      reviewTitle: document.getElementById("rv_title").value.trim(),
+      reviewComment: document.getElementById("rv_comment").value.trim()
+    });
+    toast("Review submitted");
+    document.getElementById("reviewModal").style.display = "none";
+    load();
+  } catch (e) { toast(e.message, "err"); }
+});
+
+function openAgentReview(orderId) {
+  document.getElementById("arv_orderId").value = orderId;
+  document.getElementById("arv_comment").value = "";
+  renderStars("arv_stars", 5);
+  document.getElementById("agentReviewModal").style.display = "block";
+}
+
+document.getElementById("submitAgentReviewBtn").addEventListener("click", async () => {
+  try {
+    await api.createAgentReview({
+      orderId: Number(document.getElementById("arv_orderId").value),
+      rating: Number(document.getElementById("arv_stars").dataset.value),
+      reviewComment: document.getElementById("arv_comment").value.trim()
+    });
+    toast("Thanks for rating your delivery agent!");
+    document.getElementById("agentReviewModal").style.display = "none";
+    load();
+  } catch (e) { toast(e.message, "err"); }
+});
+
+// Renders a clickable 1–5 star picker into #<id>, storing the chosen
+// value in data-value (read by the submit handlers above).
+function renderStars(id, initial) {
+  const el = document.getElementById(id);
+  el.dataset.value = initial;
+  const draw = (hoverValue) => {
+    const active = hoverValue || Number(el.dataset.value);
+    el.innerHTML = [1, 2, 3, 4, 5].map(n => `
+      <span data-n="${n}" style="cursor:pointer;font-size:1.6rem;line-height:1;color:${n <= active ? '#F5A623' : '#D8D3C4'};">★</span>
+    `).join("");
+  };
+  draw();
+  el.onmouseleave = () => draw();
+  el.querySelectorAll("span").forEach(star => {
+    star.addEventListener("mouseenter", () => draw(Number(star.dataset.n)));
+    star.addEventListener("click", () => {
+      el.dataset.value = star.dataset.n;
+      draw();
+    });
+  });
+}
+</script>
+</body>
+</html>

@@ -36,4 +36,14 @@ public class DeliveryAgent extends BaseEntity {
 
     @Column(precision = 10, scale = 7)
     private BigDecimal currentLongitude;
+
+    // ── Reviews: aggregate rating fields (buyers rate the agent after
+    // delivery, 1–5 stars) ─────────────────────────────────────────
+    @Column
+    @Builder.Default
+    private Double averageRating = 0.0;
+
+    @Column
+    @Builder.Default
+    private Integer reviewCount = 0;
 }

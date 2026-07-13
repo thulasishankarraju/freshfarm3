@@ -176,6 +176,12 @@ const api = {
   farmerReviews: (farmerId) => request(`/api/reviews/farmer/${farmerId}`, { auth: false }),
   myReviews: () => request("/api/reviews/my-reviews"),
 
+  // ---- Delivery agent reviews (1-5 stars, after order is delivered) ----
+  createAgentReview: (payload) => request("/api/agent-reviews", { method: "POST", body: payload }),
+  agentReviews: (agentId) => request(`/api/agent-reviews/agent/${agentId}`, { auth: false }),
+  agentReviewSummary: (agentId) => request(`/api/agent-reviews/agent/${agentId}/summary`, { auth: false }),
+  myAgentReviews: () => request("/api/agent-reviews/my-reviews"),
+
   // ---- Subscriptions ----
   createSubscription: (payload) => request("/api/subscriptions", { method: "POST", body: payload }),
   pauseSubscription: (id) => request(`/api/subscriptions/${id}/pause`, { method: "PUT" }),
