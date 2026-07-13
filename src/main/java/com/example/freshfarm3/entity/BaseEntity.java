@@ -75,4 +75,10 @@ public abstract class BaseEntity {
                 ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass().hashCode()
                 : getClass().hashCode();
     }
+
+    public void setAverageRating(double v) {
+    }
+
+    public void setReviewCount(int count) {
+    }
 }
