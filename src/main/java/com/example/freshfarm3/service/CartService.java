@@ -36,6 +36,8 @@ public class CartService {
         Buyer buyer = getBuyer(buyerEmail);
         Product product = getProduct(req.getProductId());
 
+        validateOrderQuantity(product, req.getQuantity());
+
         if (!product.hasStock(req.getQuantity())) {
             throw new RuntimeException(
                     "Insufficient stock for '" + product.getName() +
@@ -50,7 +52,7 @@ public class CartService {
 
         if (existingItem.isPresent()) {
             CartItem item = existingItem.get();
-            int newQty = item.getQuantity() + req.getQuantity();
+            BigDecimal newQty = item.getQuantity().add(req.getQuantity());
             if (!product.hasStock(newQty)) {
                 throw new RuntimeException(
                         "Cannot add more. Only " + product.getStockQuantity() +
@@ -58,7 +60,7 @@ public class CartService {
                 );
             }
             item.setQuantity(newQty);
-            item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
+            item.setSubtotal(product.getPrice().multiply(newQty));
             cartItemRepository.save(item);
         } else {
             CartItem newItem = new CartItem();
@@ -66,9 +68,7 @@ public class CartService {
             newItem.setProduct(product);
             newItem.setQuantity(req.getQuantity());
             newItem.setPrice(product.getPrice());
-            newItem.setSubtotal(
-                    product.getPrice().multiply(BigDecimal.valueOf(req.getQuantity()))
-            );
+            newItem.setSubtotal(product.getPrice().multiply(req.getQuantity()));
             cartItemRepository.save(newItem);
         }
 
@@ -78,8 +78,10 @@ public class CartService {
 
     // ── UPDATE QUANTITY ───────────────────────────────────────────
     @Transactional
-    public CartResponse updateQuantity(String buyerEmail, Long cartItemId, int newQty) {
-        if (newQty < 1) throw new RuntimeException("Quantity must be at least 1");
+    public CartResponse updateQuantity(String buyerEmail, Long cartItemId, BigDecimal newQty) {
+        if (newQty == null || newQty.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Quantity must be greater than 0");
+        }
 
         CartItem item = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new RuntimeException("Cart item not found"));
@@ -87,6 +89,8 @@ public class CartService {
         validateCartOwnership(item, buyerEmail);
 
         Product product = item.getProduct();
+        validateOrderQuantity(product, newQty);
+
         if (!product.hasStock(newQty)) {
             throw new RuntimeException(
                     "Only " + product.getStockQuantity() + " units available."
@@ -94,7 +98,7 @@ public class CartService {
         }
 
         item.setQuantity(newQty);
-        item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(newQty)));
+        item.setSubtotal(product.getPrice().multiply(newQty));
         cartItemRepository.save(item);
 
         log.info("Cart item updated: cartItemId={}, newQty={}", cartItemId, newQty);
@@ -167,6 +171,31 @@ public class CartService {
         }
     }
 
+    // Enforces each product's buyer-facing step size: 0.25 (kg/L) steps for
+    // KG/LITER products, whole pieces only for PIECE products. Product
+    // already exposes this rule (isValidOrderQuantity) — the cart just
+    // wasn't calling it before, so e.g. 0.3 kg or 2.5 pieces could slip
+    // through the API even though the frontend's step attribute blocks them.
+    private void validateOrderQuantity(Product product, BigDecimal qty) {
+        if (!product.isValidOrderQuantity(qty)) {
+            String unit = product.getUnitType() != null ? product.getUnitType().name() : "unit";
+            throw new RuntimeException(
+                    "Invalid quantity for '" + product.getName() + "'. Must be a positive multiple of "
+                            + product.stepSize() + " " + unit);
+        }
+    }
+
+    // Legacy short display string for a unit (kept for older frontend code
+    // that reads productUnit instead of unitType).
+    private String legacyUnitLabel(Product product) {
+        if (product.getUnitType() == null) return "";
+        return switch (product.getUnitType()) {
+            case KG -> "kg";
+            case LITER -> "L";
+            case PIECE -> "piece";
+        };
+    }
+
     private CartResponse buildCartResponse(Cart cart) {
 
         List<CartItem> items = cartItemRepository.findByCart(cart);
@@ -186,7 +215,8 @@ public class CartService {
                             .cartItemId(item.getId())
                             .productId(product.getId())
                             .productName(product.getName())
-                            .productUnit(product.getUnit())
+                            .productUnit(legacyUnitLabel(product))
+                            .unitType(product.getUnitType() != null ? product.getUnitType().name() : null)
                             .imageUrl(imageUrl)
                             .pricePerUnit(item.getPrice())
                             .quantity(item.getQuantity())
@@ -201,9 +231,11 @@ public class CartService {
                 .map(CartResponse.CartItemResponseDto::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        int totalItems = itemDtos.stream()
-                .mapToInt(CartResponse.CartItemResponseDto::getQuantity)
-                .sum();
+        // Number of distinct product lines in the cart — NOT a sum of
+        // quantities. Quantities now mix units (kg, L, whole pieces), so
+        // adding them together would be meaningless (e.g. "2.5 kg of
+        // tomatoes + 3 bananas" isn't "5.5" of anything).
+        int totalItems = itemDtos.size();
 
         return CartResponse.builder()
                 .cartId(cart.getId())

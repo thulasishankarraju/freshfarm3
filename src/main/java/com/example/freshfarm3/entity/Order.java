@@ -35,6 +35,21 @@ public class Order extends BaseEntity {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal deliveryCharge;
 
+    // Flat ₹5 platform fee charged to the buyer on every order. Shown to
+    // the buyer as its own line item — this is separate from (and does
+    // NOT affect) the farmer-side platform fee, which is deducted from
+    // farmer earnings and is never exposed on the buyer's order data.
+    @Column(nullable = false, precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal platformFee = BigDecimal.ZERO;
+
+    // Optional tip for the delivery agent — buyer picks a fixed amount
+    // (₹10/₹20/₹30) or enters a custom amount at checkout. Goes to the
+    // agent in full; the platform does not take a cut of this.
+    @Column(nullable = false, precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal tipAmount = BigDecimal.ZERO;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;
 

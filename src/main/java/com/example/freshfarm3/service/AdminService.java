@@ -10,8 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.example.freshfarm3.dto.response.OrderResponse;
-import com.example.freshfarm3.exception.ResourceNotFoundException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,7 +30,6 @@ public class AdminService {
     private final DeliveryAgentRepository deliveryAgentRepository;
     private final ReviewRepository reviewRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
 
     // ===========================================================
@@ -117,11 +114,7 @@ public class AdminService {
     private List<Map<String, Object>> buildRevenueByMonth() {
         LocalDate sixMonthsAgo = LocalDate.now().minusMonths(5).withDayOfMonth(1);
 
-        Map<String, BigDecimal> revenueByMonthKey = new LinkedHashMap<>();
-        for (int i = 5; i >= 0; i--) {
-            LocalDate monthStart = LocalDate.now().minusMonths(i).withDayOfMonth(1);
-            revenueByMonthKey.put(monthKey(monthStart), BigDecimal.ZERO);
-        }
+        Map<String, BigDecimal> revenueByMonthKey = initLastSixMonths(BigDecimal.ZERO);
 
         orderRepository.findAll().stream()
                 .filter(o -> "PAID".equalsIgnoreCase(o.getPaymentStatus()))
@@ -145,11 +138,7 @@ public class AdminService {
     private List<Map<String, Object>> buildOrdersByMonth() {
         LocalDate sixMonthsAgo = LocalDate.now().minusMonths(5).withDayOfMonth(1);
 
-        Map<String, Long> ordersByMonthKey = new LinkedHashMap<>();
-        for (int i = 5; i >= 0; i--) {
-            LocalDate monthStart = LocalDate.now().minusMonths(i).withDayOfMonth(1);
-            ordersByMonthKey.put(monthKey(monthStart), 0L);
-        }
+        Map<String, Long> ordersByMonthKey = initLastSixMonths(0L);
 
         orderRepository.findAll().stream()
                 .filter(o -> o.getOrderDate() != null)
@@ -169,20 +158,35 @@ public class AdminService {
         return result;
     }
 
+    // Shared by buildRevenueByMonth/buildOrdersByMonth — builds the last 6
+    // calendar months (oldest first) pre-seeded with a zero value, so months
+    // with no orders still show up in the chart instead of being skipped.
+    private <T> Map<String, T> initLastSixMonths(T zeroValue) {
+        Map<String, T> byMonthKey = new LinkedHashMap<>();
+        for (int i = 5; i >= 0; i--) {
+            LocalDate monthStart = LocalDate.now().minusMonths(i).withDayOfMonth(1);
+            byMonthKey.put(monthKey(monthStart), zeroValue);
+        }
+        return byMonthKey;
+    }
+
     private String monthKey(LocalDate monthStart) {
         return monthStart.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH) + " " + monthStart.getYear();
     }
 
     private List<Map<String, Object>> buildTopProducts() {
         Map<Product, BigDecimal> revenueByProduct = new HashMap<>();
-        Map<Product, Long> unitsByProduct = new HashMap<>();
+        // Quantity sold, kept as BigDecimal (not long) — products are sold
+        // in fractional kg/L amounts (e.g. 0.25 kg steps), so truncating to
+        // a whole number here would silently understate/misreport sales.
+        Map<Product, BigDecimal> unitsByProduct = new HashMap<>();
 
         orderRepository.findAll().forEach(order -> {
             if (order.getItems() == null) return;
             order.getItems().forEach(item -> {
                 Product product = item.getProduct();
                 revenueByProduct.merge(product, item.getSubtotal(), BigDecimal::add);
-                unitsByProduct.merge(product, (long) item.getQuantity(), Long::sum);
+                unitsByProduct.merge(product, item.getQuantity(), BigDecimal::add);
             });
         });
 
@@ -193,7 +197,7 @@ public class AdminService {
                     Product product = entry.getKey();
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("name", product.getName());
-                    row.put("sales", unitsByProduct.getOrDefault(product, 0L));
+                    row.put("sales", unitsByProduct.getOrDefault(product, BigDecimal.ZERO));
                     row.put("revenue", entry.getValue());
                     return row;
                 })
@@ -301,9 +305,9 @@ public class AdminService {
                 .collect(Collectors.toList());
     }
 
-    // NEW — there was previously no way for anyone (admin or farmer) to move
+    // There was previously no way for anyone (admin or farmer) to move
     // an order out of PENDING. That silently blocked delivery assignment
-    // too, since DeliveryService.assignDelivery requires CONFIRMED/PROCESSING.
+    // too, since DeliveryService.assignDelivery expects CONFIRMED/PROCESSING.
     @Transactional
     public OrderResponse confirmOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)

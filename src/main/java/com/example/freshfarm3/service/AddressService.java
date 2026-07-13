@@ -24,6 +24,7 @@ public class AddressService {
 
     private final AddressRepository addressRepository;
     private final BuyerRepository   buyerRepository;
+    private final DeliveryChargeService deliveryChargeService;
 
     @Transactional
     public AddressResponse createAddress(String buyerEmail, AddressRequest req) {
@@ -37,6 +38,8 @@ public class AddressService {
                 .state(req.getState())
                 .pincode(req.getPincode())
                 .isDefault(req.isDefault())
+                .latitude(req.getLatitude())
+                .longitude(req.getLongitude())
                 .buyer(buyer)
                 .build();
 
@@ -75,6 +78,8 @@ public class AddressService {
         address.setCity(req.getCity());
         address.setState(req.getState());
         address.setPincode(req.getPincode());
+        address.setLatitude(req.getLatitude());
+        address.setLongitude(req.getLongitude());
 
         if (req.isDefault() && !Boolean.TRUE.equals(address.getIsDefault())) {
             clearExistingDefault(buyer);
@@ -125,6 +130,8 @@ public class AddressService {
                 .state(a.getState())
                 .pincode(a.getPincode())
                 .isDefault(Boolean.TRUE.equals(a.getIsDefault()))
+                .distanceKm(deliveryChargeService.distanceKmTo(a))
+                .deliveryCharge(deliveryChargeService.calculateCharge(a))
                 .build();
     }
 }

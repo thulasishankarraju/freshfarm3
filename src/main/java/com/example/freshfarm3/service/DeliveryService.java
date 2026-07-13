@@ -254,12 +254,14 @@ public class DeliveryService {
         String buyerEmail = order.getBuyer().getUser().getEmail();
         String buyerPhone = order.getBuyer().getUser().getPhone();
         String agentName  = agent.getUser().getFullName();
+        String agentPhone = agent.getPhone();
         String channel     = order.getOtpChannel() != null ? order.getOtpChannel() : "BOTH";
 
         saveNotification(
                 order.getBuyer().getUser(),
                 "Delivery Agent Assigned 🚚",
                 "Order #" + order.getOrderNumber() + " is assigned to " + agentName +
+                        (agentPhone != null ? " (" + agentPhone + ")" : "") +
                         ". Your OTP: " + otp
         );
 
@@ -272,7 +274,9 @@ public class DeliveryService {
                     "FarmFresh — Your Delivery Agent Is Assigned",
                     "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
                             "Your order #" + order.getOrderNumber() + " has been assigned to " +
-                            agentName + " (" + agent.getVehicleNumber() + ").\n\n" +
+                            agentName + " (" + agent.getVehicleNumber() + ").\n" +
+                            (agentPhone != null ? "Agent contact number: " + agentPhone +
+                                    " — call or message them directly for accurate delivery.\n\n" : "\n") +
                             "Your delivery OTP is: " + otp + "\n" +
                             "Please share this OTP ONLY with the delivery agent at the time of delivery.\n\n" +
                             "Estimated delivery time: within 3 hours.\n\nTeam FarmFresh"
@@ -281,8 +285,9 @@ public class DeliveryService {
 
         if (sendSms && buyerPhone != null) {
             smsService.send("+91" + buyerPhone,
-                    "FarmFresh: Your OTP for order #" + order.getOrderNumber() +
-                            " is " + otp + ". Share only with your delivery agent.");
+                    "FarmFresh: Order #" + order.getOrderNumber() + " assigned to " + agentName +
+                            (agentPhone != null ? " (" + agentPhone + ")" : "") +
+                            ". Your OTP is " + otp + ". Share only with your delivery agent.");
         }
     }
 

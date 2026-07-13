@@ -17,7 +17,10 @@ public class ProductResponse {
     private String name;
     private String description;
     private BigDecimal price;
-    private Integer quantity;
+    private BigDecimal quantity;          // stock, in kg or liters
+    private String unitType;              // "KG", "PIECE", "LITER"
+    private BigDecimal avgPieceWeightGrams;
+    private Integer approxPiecesAvailable; // only populated for PIECE products
     private String status;
 
     // Category info

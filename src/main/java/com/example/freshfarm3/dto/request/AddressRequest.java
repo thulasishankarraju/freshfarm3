@@ -38,5 +38,12 @@ public class AddressRequest {
     @Pattern(regexp = "^[1-9][0-9]{5}$", message = "Enter a valid 6-digit pincode")
     private String pincode;
 
+    @Builder.Default
     private boolean isDefault = false;
+
+    // Optional — filled in automatically by "Use my current location" on
+    // the address form. Enables distance-based delivery pricing; if
+    // omitted, delivery charge falls back to a flat rate.
+    private Double latitude;
+    private Double longitude;
 }

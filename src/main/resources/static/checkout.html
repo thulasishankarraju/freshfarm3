@@ -34,11 +34,28 @@
     <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
       <input type="checkbox" id="na_isDefault" style="width:auto;"> Set as default address
     </label>
+    <button type="button" class="btn btn-outline btn-sm" id="useLocationBtn" style="margin-top:8px;">📍 Use my current location (for accurate delivery charge)</button>
+    <div id="locationStatus" class="muted" style="font-size:.82rem;margin-top:4px;"></div>
+    <input type="hidden" id="na_latitude">
+    <input type="hidden" id="na_longitude">
     <div id="newAddress-alert"></div>
     <button class="btn btn-primary" style="margin-top:10px" id="saveAddressBtn">Save address</button>
   </div>
 
   <div id="cartSummary" class="card" style="margin-bottom:20px;"><p class="muted">Loading cart…</p></div>
+
+  <div class="card" style="margin-bottom:20px;">
+    <h4>Tip your delivery agent (optional)</h4>
+    <p class="muted" style="font-size:.85rem;">100% of this goes to the agent — the platform doesn't take a cut.</p>
+    <div id="tipButtons" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      <button type="button" class="btn btn-outline btn-sm tip-btn" data-amount="0">No tip</button>
+      <button type="button" class="btn btn-outline btn-sm tip-btn" data-amount="10">₹10</button>
+      <button type="button" class="btn btn-outline btn-sm tip-btn" data-amount="20">₹20</button>
+      <button type="button" class="btn btn-outline btn-sm tip-btn" data-amount="30">₹30</button>
+    </div>
+    <label style="margin-top:10px;">Or enter a custom amount (₹)</label>
+    <input type="number" min="0" step="1" id="customTip" placeholder="e.g. 25">
+  </div>
 
   <form id="checkoutForm" class="card">
     <input type="hidden" id="addressId" required>
@@ -76,11 +93,34 @@
   if (requireAuth(["BUYER"])) { loadAddresses(); loadCartSummary(); }
 
   let selectedAddressId = null;
+  let addressesById = {};
+  let cartSubtotal = null;
+  const PLATFORM_FEE = 5;
+  let tipAmount = 0;
+
+  document.querySelectorAll(".tip-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      tipAmount = Number(btn.dataset.amount);
+      document.querySelectorAll(".tip-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("customTip").value = "";
+      renderOrderSummary();
+    });
+  });
+  document.querySelector('.tip-btn[data-amount="0"]').classList.add("active");
+
+  document.getElementById("customTip").addEventListener("input", (e) => {
+    const val = Number(e.target.value);
+    tipAmount = (e.target.value && val >= 0) ? val : 0;
+    document.querySelectorAll(".tip-btn").forEach(b => b.classList.remove("active"));
+    renderOrderSummary();
+  });
 
   async function loadAddresses() {
     const box = document.getElementById("addressBox");
     try {
       const addresses = await api.myAddresses();
+      addressesById = Object.fromEntries(addresses.map(a => [a.id, a]));
       if (!addresses.length) {
         box.innerHTML = `<p class="muted">No saved addresses yet.</p>`;
         document.getElementById("newAddressForm").style.display = "block";
@@ -96,7 +136,8 @@
           <input type="radio" name="addrRadio" style="width:auto;margin-top:4px;" value="${a.id}" ${a.id === selectedAddressId ? "checked" : ""}>
           <span>
             <strong>${a.fullName}</strong> ${a.default ? '<span class="badge badge-active">Default</span>' : ''}<br>
-            <span class="muted">${a.addressLine}, ${a.city}, ${a.state} - ${a.pincode} · ${a.mobileNumber}</span>
+            <span class="muted">${a.addressLine}, ${a.city}, ${a.state} - ${a.pincode} · ${a.mobileNumber}</span><br>
+            <span class="muted" style="font-size:.82rem;">${a.distanceKm != null ? `${a.distanceKm.toFixed(1)} km from our Tirupati farm · ` : ''}Delivery charge: ${money(a.deliveryCharge)}</span>
           </span>
         </label>`).join("")}
       <button type="button" class="btn btn-outline btn-sm" style="margin-top:10px;" onclick="document.getElementById('newAddressForm').style.display='block'">+ Add new address</button>
@@ -105,17 +146,40 @@
         r.addEventListener("change", (e) => {
           selectedAddressId = Number(e.target.value);
           document.getElementById("addressId").value = selectedAddressId;
+          renderOrderSummary();
         });
       });
+      renderOrderSummary();
     } catch (e) {
       box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
     }
   }
 
+  document.getElementById("useLocationBtn").addEventListener("click", () => {
+    const status = document.getElementById("locationStatus");
+    if (!navigator.geolocation) {
+      status.textContent = "Geolocation isn't supported by this browser — delivery charge will use a flat estimate.";
+      return;
+    }
+    status.textContent = "Locating…";
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        document.getElementById("na_latitude").value = pos.coords.latitude;
+        document.getElementById("na_longitude").value = pos.coords.longitude;
+        status.textContent = "✓ Location captured — delivery charge will be calculated by distance.";
+      },
+      () => {
+        status.textContent = "Couldn't get your location — delivery charge will use a flat estimate instead.";
+      }
+    );
+  });
+
   document.getElementById("saveAddressBtn").addEventListener("click", async () => {
     const alertBox = document.getElementById("newAddress-alert");
     alertBox.innerHTML = "";
     try {
+      const lat = document.getElementById("na_latitude").value;
+      const lng = document.getElementById("na_longitude").value;
       const addr = await api.createAddress({
         fullName: na_fullName.value.trim(),
         mobileNumber: na_mobile.value.trim(),
@@ -123,7 +187,9 @@
         city: na_city.value.trim(),
         state: na_state.value.trim(),
         pincode: na_pincode.value.trim(),
-        isDefault: na_isDefault.checked
+        isDefault: na_isDefault.checked,
+        latitude: lat ? Number(lat) : undefined,
+        longitude: lng ? Number(lng) : undefined
       });
       toast("Address saved");
       document.getElementById("newAddressForm").style.display = "none";
@@ -144,14 +210,42 @@
         document.querySelector("#checkoutForm button").disabled = true;
         return;
       }
+      cartSubtotal = cart.items.reduce((sum, i) => sum + Number(i.subtotal), 0);
       box.innerHTML = `
-      ${cart.items.map(i => `<div class="flex-between"><span>${i.productName} × ${i.quantity}</span><span>${money(i.subtotal)}</span></div>`).join("")}
+      ${cart.items.map(i => `<div class="flex-between"><span>${i.productName} × ${formatQty(i.quantity, i.unitType)}</span><span>${money(i.subtotal)}</span></div>`).join("")}
       <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
-      <div class="flex-between"><strong>Total</strong><strong>${money(cart.totalAmount)}</strong></div>
+      <div id="orderSummaryBreakdown"></div>
     `;
+      renderOrderSummary();
     } catch (e) {
       box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
     }
+  }
+
+  // Combines the cart's product subtotal with the currently-selected
+  // address's distance-based delivery charge, so the buyer sees the full
+  // "product charge + delivery charge = total" breakdown before placing
+  // the order — not just the product subtotal.
+  function renderOrderSummary() {
+    const el = document.getElementById("orderSummaryBreakdown");
+    if (!el || cartSubtotal == null) return;
+    const addr = addressesById[selectedAddressId];
+    const deliveryCharge = addr ? Number(addr.deliveryCharge) : null;
+
+    if (deliveryCharge == null) {
+      el.innerHTML = `
+        <div class="flex-between"><span>Product charge</span><span>${money(cartSubtotal)}</span></div>
+        <div class="muted" style="font-size:.82rem;margin-top:4px;">Select a delivery address to see the delivery charge.</div>`;
+      return;
+    }
+    const total = cartSubtotal + deliveryCharge + PLATFORM_FEE + tipAmount;
+    el.innerHTML = `
+      <div class="flex-between"><span>Product charge</span><span>${money(cartSubtotal)}</span></div>
+      <div class="flex-between"><span>Delivery charge${addr.distanceKm != null ? ` (${addr.distanceKm.toFixed(1)} km × ₹10/km)` : ''}</span><span>${money(deliveryCharge)}</span></div>
+      <div class="flex-between"><span>Platform fee</span><span>${money(PLATFORM_FEE)}</span></div>
+      <div class="flex-between"><span>Delivery agent tip</span><span>${money(tipAmount)}</span></div>
+      <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
+      <div class="flex-between"><strong>Total</strong><strong>${money(total)}</strong></div>`;
   }
 
   document.getElementById("checkoutForm").addEventListener("submit", async (e) => {
@@ -169,7 +263,8 @@
         addressId: Number(document.getElementById("addressId").value),
         couponCode: document.getElementById("couponCode").value.trim() || undefined,
         paymentMethod,
-        otpChannel: document.getElementById("otpChannel").value
+        otpChannel: document.getElementById("otpChannel").value,
+        tipAmount: tipAmount || 0
       });
 
       if (paymentMethod === "COD") {
