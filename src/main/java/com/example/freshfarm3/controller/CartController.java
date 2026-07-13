@@ -11,6 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/api/cart")
 @RequiredArgsConstructor
@@ -39,7 +41,7 @@ public class CartController {
     public ResponseEntity<CartResponse> updateQuantity(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long cartItemId,
-            @RequestParam int quantity) {
+            @RequestParam BigDecimal quantity) {
         return ResponseEntity.ok(
                 cartService.updateQuantity(userDetails.getUsername(), cartItemId, quantity)
         );

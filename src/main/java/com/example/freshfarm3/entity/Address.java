@@ -45,6 +45,17 @@ public class Address extends BaseEntity {
     @Builder.Default
     private Boolean isDefault = false;
 
+    // Optional — captured via the browser's geolocation ("Use my current
+    // location" on the address form). When present, delivery charge is
+    // computed as distance-from-farm (Tirupati) × ₹10/km. When absent
+    // (buyer skipped geolocation, or an address predates this feature),
+    // DeliveryChargeService falls back to a flat charge instead.
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "buyer_id", nullable = false)
     private Buyer buyer;

@@ -24,8 +24,16 @@ public class ProductRequest {
     private BigDecimal price;
 
     @NotNull(message = "Quantity is required")
-    @Min(value = 0, message = "Quantity cannot be negative")
-    private Integer quantity;
+    @DecimalMin(value = "0.0", inclusive = true, message = "Quantity cannot be negative")
+    private BigDecimal quantity;   // stock, always in kg (KG/PIECE products) or liters (LITER products)
+
+    @NotBlank(message = "Unit type is required")
+    private String unitType;       // "KG", "PIECE", or "LITER"
+
+    // Required only when unitType = PIECE — average weight of one piece,
+    // used to convert piece-count orders into a kg stock deduction.
+    @DecimalMin(value = "0.01", message = "Average piece weight must be greater than 0")
+    private BigDecimal avgPieceWeightGrams;
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;

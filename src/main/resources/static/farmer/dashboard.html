@@ -52,9 +52,12 @@ async function loadOrders() {
       <div class="card" style="margin-bottom:12px;">
         <div class="flex-between">
           <div><strong>${o.orderNumber}</strong> <span class="badge badge-active">${o.orderStatus}</span></div>
-          <strong>${money(o.totalAmount)}</strong>
+          <strong>${money(o.netEarnings)}</strong>
         </div>
-        <p class="muted" style="margin-top:6px;">${o.items.map(i => i.productName + ' × ' + i.quantity).join(', ')}</p>
+        <p class="muted" style="margin-top:6px;">${o.items.map(i => i.productName + ' × ' + formatQty(i.quantity, i.unitType)).join(', ')}</p>
+        <div class="muted" style="font-size:.82rem;margin-top:6px;border-top:1px solid var(--line);padding-top:6px;">
+          Your earnings: ${money(o.grossEarnings)} − platform fee ${money(o.platformFee)} = <strong>${money(o.netEarnings)}</strong> net
+        </div>
       </div>`).join("");
   } catch (e) {
     box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;

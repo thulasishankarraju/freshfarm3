@@ -20,4 +20,12 @@ public class CheckoutRequest {
      * Optional — defaults to "BOTH" on the backend if not supplied.
      */
     private String otpChannel;
+
+    /**
+     * Optional tip for the delivery agent. Buyer picks a fixed amount
+     * (₹10/₹20/₹30) or enters a custom amount on the checkout page.
+     * Goes to the agent in full — the platform takes no cut of this.
+     * Defaults to ₹0 if not supplied.
+     */
+    private java.math.BigDecimal tipAmount;
 }

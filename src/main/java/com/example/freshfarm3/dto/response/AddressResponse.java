@@ -17,4 +17,11 @@ public class AddressResponse {
     private String state;
     private String pincode;
     private boolean isDefault;
+
+    // Computed, not stored: distance from the farm (Tirupati) in km, and
+    // the delivery charge that would apply if this address is selected at
+    // checkout. distanceKm is null when the address has no saved
+    // coordinates — deliveryCharge still has a flat-rate fallback value.
+    private Double distanceKm;
+    private java.math.BigDecimal deliveryCharge;
 }

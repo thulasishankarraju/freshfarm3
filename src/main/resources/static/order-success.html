@@ -34,11 +34,13 @@ async function load() {
       <p>Order <strong>${order.orderNumber}</strong> — status: <span class="badge badge-active">${order.orderStatus}</span></p>
       <table style="margin:16px 0;">
         <tbody>
-          ${order.items.map(i => `<tr><td>${i.productName} × ${i.quantity}</td><td>${money(i.subtotal)}</td></tr>`).join("")}
+          ${order.items.map(i => `<tr><td>${i.productName} × ${formatQty(i.quantity, i.unitType)}</td><td>${money(i.subtotal)}</td></tr>`).join("")}
         </tbody>
       </table>
-      <div class="flex-between"><span>Subtotal</span><span>${money(order.subtotal)}</span></div>
+      <div class="flex-between"><span>Subtotal (products)</span><span>${money(order.subtotal)}</span></div>
       <div class="flex-between"><span>Delivery</span><span>${money(order.deliveryCharge)}</span></div>
+      <div class="flex-between"><span>Platform fee</span><span>${money(order.platformFee)}</span></div>
+      <div class="flex-between"><span>Delivery agent tip</span><span>${money(order.tipAmount)}</span></div>
       <div class="flex-between" style="margin-top:6px;"><strong>Total</strong><strong>${money(order.totalAmount)}</strong></div>
       <p class="muted" style="margin-top:14px;">Delivering to: ${order.deliveryAddress}</p>
       <div style="display:flex;gap:10px;margin-top:20px;">

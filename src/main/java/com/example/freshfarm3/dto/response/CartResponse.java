@@ -22,15 +22,14 @@ public class CartResponse {
         private Long cartItemId;
         private Long productId;
         private String productName;
-        private String productUnit;
+        private String productUnit;       // legacy display string, kept for compatibility
+        private String unitType;          // "KG", "PIECE", "LITER"
         private String imageUrl;
         private BigDecimal pricePerUnit;
-        private Integer quantity;
+        private BigDecimal quantity;
         private BigDecimal subtotal;
-        private Integer availableStock;
+        private BigDecimal availableStock;
         private Boolean isAvailable;
-        private BigDecimal prise;
     }
 
 }
-

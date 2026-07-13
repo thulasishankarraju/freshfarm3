@@ -2,6 +2,7 @@ package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.dto.request.CheckoutRequest;
 import com.example.freshfarm3.dto.response.CheckoutResponse;
+import com.example.freshfarm3.dto.response.FarmerOrderResponse;
 import com.example.freshfarm3.entity.*;
 import com.example.freshfarm3.repository.*;
 import com.example.freshfarm3.enums.OrderStatus;
@@ -31,9 +32,17 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final NotificationRepository notificationRepository;
     private final OrderNumberGenerator   orderNumberGenerator;
+    private final DeliveryChargeService  deliveryChargeService;
+    private final FarmerRepository       farmerRepository;
 
-    private static final BigDecimal DELIVERY_CHARGE = BigDecimal.valueOf(50);
-    private static final BigDecimal FREE_DELIVERY_ABOVE = BigDecimal.valueOf(500);
+    // Flat ₹5 platform fee charged to the buyer on every order (shown to the buyer).
+    private static final BigDecimal BUYER_PLATFORM_FEE = BigDecimal.valueOf(5);
+
+    // Flat ₹5 platform fee deducted from each farmer's earnings on every order they're
+    // part of. This is entirely separate from BUYER_PLATFORM_FEE above and must never
+    // be surfaced through any buyer-facing endpoint or DTO (CheckoutResponse) — only
+    // through FarmerOrderResponse, which buyers never receive.
+    private static final BigDecimal FARMER_PLATFORM_FEE = BigDecimal.valueOf(5);
 
     // ── PLACE ORDER ───────────────────────────────────────────────
     @Transactional
@@ -79,12 +88,20 @@ public class OrderService {
                 .map(CartItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 6. Calculate delivery charge (free above ₹500)
-        BigDecimal deliveryCharge = subtotal.compareTo(FREE_DELIVERY_ABOVE) >= 0
-                ? BigDecimal.ZERO
-                : DELIVERY_CHARGE;
+        // 6. Calculate delivery charge — distance from the farm (Tirupati)
+        //    to this address × ₹10/km (DeliveryChargeService is the single
+        //    source of truth; same calculation the buyer already saw as a
+        //    preview against each saved address before placing the order).
+        BigDecimal deliveryCharge = deliveryChargeService.calculateCharge(address);
 
-        BigDecimal totalAmount = subtotal.add(deliveryCharge);
+        // 6a. Flat platform fee (buyer-visible) + optional delivery-agent tip.
+        BigDecimal platformFee = BUYER_PLATFORM_FEE;
+        BigDecimal tipAmount = req.getTipAmount() != null ? req.getTipAmount() : BigDecimal.ZERO;
+        if (tipAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new RuntimeException("Tip amount cannot be negative");
+        }
+
+        BigDecimal totalAmount = subtotal.add(deliveryCharge).add(platformFee).add(tipAmount);
 
         // 7. Generate order number
         String orderNumber = orderNumberGenerator.generate();
@@ -96,6 +113,8 @@ public class OrderService {
                 .deliveryAddress(address)
                 .subtotal(subtotal)
                 .deliveryCharge(deliveryCharge)
+                .platformFee(platformFee)
+                .tipAmount(tipAmount)
                 .totalAmount(totalAmount)
                 .paymentStatus("PENDING")
                 .orderStatus(OrderStatus.PENDING)
@@ -206,14 +225,57 @@ public class OrderService {
     }
 
     // ── FARMER: VIEW ORDERS FOR MY PRODUCTS ───────────────────────
+    // Returns FarmerOrderResponse (not CheckoutResponse): only this
+    // farmer's own items in each order, plus their earnings breakdown
+    // (gross → platform fee → net). The farmer platform fee here is
+    // never exposed to buyers — CheckoutResponse has no such field.
     @Transactional(readOnly = true)
-    public List<CheckoutResponse> getOrdersForFarmer(String farmerEmail) {
+    public List<FarmerOrderResponse> getOrdersForFarmer(String farmerEmail) {
+        Farmer farmer = farmerRepository.findByUser_Email(farmerEmail)
+                .orElseThrow(() -> new RuntimeException("Farmer not found"));
+
         return orderRepository.findByItems_Product_Farmer_User_Email(farmerEmail).stream()
-                .map(order -> {
-                    List<OrderItem> items = orderItemRepository.findByOrder(order);
-                    return buildCheckoutResponse(order, items, order.getDeliveryAddress());
-                })
+                .map(order -> buildFarmerOrderResponse(order, farmer))
                 .collect(Collectors.toList());
+    }
+
+    private FarmerOrderResponse buildFarmerOrderResponse(Order order, Farmer farmer) {
+        List<OrderItem> myItems = orderItemRepository.findByOrder(order).stream()
+                .filter(oi -> oi.getProduct().getFarmer().getId().equals(farmer.getId()))
+                .collect(Collectors.toList());
+
+        List<FarmerOrderResponse.OrderItemDto> itemDtos = myItems.stream()
+                .map(oi -> FarmerOrderResponse.OrderItemDto.builder()
+                        .productId(oi.getProduct().getId())
+                        .productName(oi.getProduct().getName())
+                        .quantity(oi.getQuantity())
+                        .unitType(oi.getProduct().getUnitType() != null ? oi.getProduct().getUnitType().name() : null)
+                        .pricePerUnit(oi.getPrice())
+                        .subtotal(oi.getSubtotal())
+                        .build())
+                .collect(Collectors.toList());
+
+        BigDecimal grossEarnings = myItems.stream()
+                .map(OrderItem::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal netEarnings = grossEarnings.subtract(FARMER_PLATFORM_FEE);
+
+        Address address = order.getDeliveryAddress();
+        String addressStr = address.getAddressLine() + ", " + address.getCity() +
+                ", " + address.getState() + " - " + address.getPincode();
+
+        return FarmerOrderResponse.builder()
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .orderStatus(order.getOrderStatus())
+                .paymentStatus(order.getPaymentStatus())
+                .orderDate(order.getOrderDate())
+                .deliveryAddress(addressStr)
+                .items(itemDtos)
+                .grossEarnings(grossEarnings)
+                .platformFee(FARMER_PLATFORM_FEE)
+                .netEarnings(netEarnings)
+                .build();
     }
 
     // ── ADMIN: VIEW ALL ORDERS ────────────────────────────────────
@@ -271,6 +333,7 @@ public class OrderService {
                         .productId(oi.getProduct().getId())
                         .productName(oi.getProduct().getName())
                         .quantity(oi.getQuantity())
+                        .unitType(oi.getProduct().getUnitType() != null ? oi.getProduct().getUnitType().name() : null)
                         .pricePerUnit(oi.getPrice())
                         .subtotal(oi.getSubtotal())
                         .build())
@@ -286,6 +349,8 @@ public class OrderService {
                 .paymentStatus(order.getPaymentStatus())
                 .subtotal(order.getSubtotal())
                 .deliveryCharge(order.getDeliveryCharge())
+                .platformFee(order.getPlatformFee())
+                .tipAmount(order.getTipAmount())
                 .totalAmount(order.getTotalAmount())
                 .orderDate(order.getOrderDate())
                 .deliveryAddress(addressStr)

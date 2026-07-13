@@ -18,6 +18,8 @@ public class CheckoutResponse {
     private String        paymentStatus;
     private BigDecimal    subtotal;
     private BigDecimal    deliveryCharge;
+    private BigDecimal    platformFee;
+    private BigDecimal    tipAmount;
     private BigDecimal    totalAmount;
     private LocalDateTime orderDate;
     private String        deliveryAddress;
@@ -28,7 +30,8 @@ public class CheckoutResponse {
     public static class OrderItemDto {
         private Long       productId;
         private String     productName;
-        private Integer    quantity;
+        private BigDecimal quantity;
+        private String     unitType;
         private BigDecimal pricePerUnit;
         private BigDecimal subtotal;
     }

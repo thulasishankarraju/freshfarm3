@@ -6,6 +6,7 @@ import com.example.freshfarm3.entity.Category;
 import com.example.freshfarm3.entity.Farmer;
 import com.example.freshfarm3.entity.Product;
 import com.example.freshfarm3.entity.ProductImage;
+import com.example.freshfarm3.enums.UnitType;
 import com.example.freshfarm3.exception.ResourceNotFoundException;
 import com.example.freshfarm3.repository.CategoryRepository;
 import com.example.freshfarm3.repository.FarmerRepository;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,11 +34,6 @@ public class ProductService {
     private final CategoryRepository   categoryRepository;
     private final FileUploadService    fileUploadService;
 
-    // TODO: ProductRequest has no `unit` field, but Product.unit is nullable=false.
-    // Placeholder used until this is resolved — either add `unit` to ProductRequest,
-    // or make the column nullable if unit tracking isn't needed at creation time.
-    private static final String DEFAULT_UNIT_PLACEHOLDER = "unit";
-
     // ── CREATE ───────────────────────────────────────────────────
     @Transactional
     public ProductResponse createProduct(ProductRequest req,
@@ -48,28 +45,25 @@ public class ProductService {
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
 
-        int quantity = req.getQuantity() != null ? req.getQuantity() : 0;
+        UnitType unitType = resolveUnitType(req.getUnitType());
+        validatePieceWeight(unitType, req.getAvgPieceWeightGrams());
+
+        BigDecimal quantity = req.getQuantity() != null ? req.getQuantity() : BigDecimal.ZERO;
 
         Product product = Product.builder()
                 .name(req.getName())
                 .description(req.getDescription())
                 .price(req.getPrice())
-                .unit(DEFAULT_UNIT_PLACEHOLDER) // TODO: see note above
+                .unitType(unitType)
+                .avgPieceWeightGrams(req.getAvgPieceWeightGrams())
                 .stockQuantity(quantity)
-                .isAvailable(quantity > 0)
+                .isAvailable(quantity.compareTo(BigDecimal.ZERO) > 0)
                 .status(resolveStatus(req.getStatus()))
                 .isOrganic(false) // TODO: ProductRequest has no isOrganic field yet
                 .category(category)
                 .farmer(farmer)
                 .build();
 
-        // FIX: previously built with `new ProductImage()`, which bypasses
-        // Lombok's @Builder.Default — displayOrder/isPrimary stayed NULL and
-        // violated the NOT NULL columns on product_images, causing a silent
-        // 500 on every product-with-images creation. Now uses the builder
-        // (with explicit values, since @Builder.Default still requires it
-        // when other fields are also set via the builder) so both columns
-        // are always populated.
         if (images != null && !images.isEmpty()) {
             for (int i = 0; i < images.size(); i++) {
                 MultipartFile file = images.get(i);
@@ -100,9 +94,16 @@ public class ProductService {
         product.setDescription(req.getDescription());
         product.setPrice(req.getPrice());
 
-        int quantity = req.getQuantity() != null ? req.getQuantity() : 0;
+        if (req.getUnitType() != null) {
+            UnitType unitType = resolveUnitType(req.getUnitType());
+            validatePieceWeight(unitType, req.getAvgPieceWeightGrams());
+            product.setUnitType(unitType);
+            product.setAvgPieceWeightGrams(req.getAvgPieceWeightGrams());
+        }
+
+        BigDecimal quantity = req.getQuantity() != null ? req.getQuantity() : BigDecimal.ZERO;
         product.setStockQuantity(quantity);
-        product.setIsAvailable(quantity > 0);
+        product.setIsAvailable(quantity.compareTo(BigDecimal.ZERO) > 0);
 
         if (req.getStatus() != null) {
             product.setStatus(resolveStatus(req.getStatus()));
@@ -165,8 +166,11 @@ public class ProductService {
     }
 
     // ── Sprint 3: Stock Validation ───────────────────────────────
+    // Quantity here is the buyer-facing order amount (kg/L/pieces per the
+    // product's unitType), not a raw stock unit — Product.hasStock already
+    // converts it internally via stockDeltaFor().
     @Transactional(readOnly = true)
-    public void validateStock(Long productId, int requestedQty) {
+    public void validateStock(Long productId, BigDecimal requestedQty) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
 
@@ -183,7 +187,7 @@ public class ProductService {
     }
 
     @Transactional
-    public void deductStock(Long productId, int qty) {
+    public void deductStock(Long productId, BigDecimal qty) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
         product.deductStock(qty);
@@ -192,7 +196,7 @@ public class ProductService {
     }
 
     @Transactional
-    public void restoreStock(Long productId, int qty) {
+    public void restoreStock(Long productId, BigDecimal qty) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
         product.restoreStock(qty);
@@ -223,6 +227,29 @@ public class ProductService {
         }
     }
 
+    private UnitType resolveUnitType(String unitType) {
+        if (unitType == null || unitType.isBlank()) {
+            throw new IllegalArgumentException("unitType is required. Must be one of: KG, PIECE, LITER");
+        }
+        try {
+            return UnitType.valueOf(unitType.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Invalid unitType '" + unitType + "'. Must be one of: KG, PIECE, LITER");
+        }
+    }
+
+    // PIECE-sold products (e.g. bananas) need an average piece weight so
+    // stock — always tracked in kg — can be deducted accurately when a
+    // buyer orders by piece count. KG/LITER products don't need this.
+    private void validatePieceWeight(UnitType unitType, BigDecimal avgPieceWeightGrams) {
+        if (unitType == UnitType.PIECE &&
+                (avgPieceWeightGrams == null || avgPieceWeightGrams.compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new IllegalArgumentException(
+                    "avgPieceWeightGrams is required and must be greater than 0 for PIECE products");
+        }
+    }
+
     public ProductResponse mapToResponse(Product p) {
         List<String> imageUrls = p.getImages().stream()
                 .map(ProductImage::getImageUrl)
@@ -234,6 +261,9 @@ public class ProductService {
                 .description(p.getDescription())
                 .price(p.getPrice())
                 .quantity(p.getStockQuantity())
+                .unitType(p.getUnitType() != null ? p.getUnitType().name() : null)
+                .avgPieceWeightGrams(p.getAvgPieceWeightGrams())
+                .approxPiecesAvailable(p.approxPiecesAvailable())
                 .status(p.getStatus() != null ? p.getStatus().name() : null)
                 .categoryId(p.getCategory().getId())
                 .categoryName(p.getCategory().getName())
