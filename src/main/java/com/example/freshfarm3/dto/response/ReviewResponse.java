@@ -17,8 +17,8 @@ public class ReviewResponse {
     private String productName;
     private Long buyerId;
     private String buyerName;
-    private Long farmerId;
-    private String farmerName;
+    private Long shopId;
+    private String shopName;
     private Long orderId;
     private Integer rating;
     private String reviewTitle;

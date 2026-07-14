@@ -86,13 +86,13 @@ function buildProductFormData(productRequest, files) {
 const api = {
   // ---- Auth ----
   registerBuyer: (payload) => request("/api/auth/register/buyer", { method: "POST", body: payload, auth: false }),
-  registerFarmer: (payload) => request("/api/auth/register/farmer", { method: "POST", body: payload, auth: false }),
+  registerShop: (payload) => request("/api/auth/register/shop", { method: "POST", body: payload, auth: false }),
   login: (payload) => request("/api/auth/login", { method: "POST", body: payload, auth: false }),
   agentRegister: (payload) => request("/api/auth/agent/register", { method: "POST", body: payload, auth: false }),
   agentLogin: (payload) => request("/api/auth/agent/login", { method: "POST", body: payload, auth: false }),
   agentProfile: () => request("/api/auth/agent/profile"),
 
-  // ---- Registration OTP (must verify BEFORE calling registerBuyer/Farmer/agentRegister) ----
+  // ---- Registration OTP (must verify BEFORE calling registerBuyer/Shop/agentRegister) ----
   // channel must be "EMAIL" or "PHONE" (not "SMS") — that's the exact string the backend's OtpChannel enum expects.
   // For PHONE, recipient must be in "+91XXXXXXXXXX" format (backend requires the country code for sending).
   registerSendOtp: (payload) => request("/api/auth/register/send-otp", { method: "POST", body: payload, auth: false }),
@@ -105,7 +105,7 @@ const api = {
   // ---- Categories ----
   listCategories: () => request("/api/categories", { auth: false }),
 
-  // ---- Products (public GETs, farmer-only writes) ----
+  // ---- Products (public GETs, shop-only writes) ----
   listProducts: (params = "") => request(`/api/products${params}`, { auth: false }),
   getProduct: (id) => request(`/api/products/${id}`, { auth: false }),
   searchProducts: (q) => request(`/api/products/search?keyword=${encodeURIComponent(q)}`, { auth: false }),
@@ -117,9 +117,9 @@ const api = {
   updateProduct: (id, payload) => request(`/api/products/${id}`, { method: "PUT", body: payload }),
   deleteProduct: (id) => request(`/api/products/${id}`, { method: "DELETE" }),
 
-  // ---- Farmer ----
-  farmerDashboard: () => request("/api/farmer/dashboard"),
-  farmerProducts: () => request("/api/farmer/products"),
+  // ---- Shop ----
+  shopDashboard: () => request("/api/shop/dashboard"),
+  shopProducts: () => request("/api/shop/products"),
 
   // ---- Cart ----
   getCart: () => request("/api/cart"),
@@ -143,7 +143,7 @@ const api = {
   myOrders: () => request("/api/orders/my-orders"),
   getOrder: (id) => request(`/api/orders/${id}`),
   cancelOrder: (id) => request(`/api/orders/${id}/cancel`, { method: "PUT" }),
-  farmerOrders: () => request("/api/orders/farmer/my-orders"),
+  shopOrders: () => request("/api/orders/shop/my-orders"),
   allOrdersAdmin: () => request("/api/orders/admin/all"),
 
   // ---- Payments ----
@@ -173,7 +173,7 @@ const api = {
   createReview: (payload) => request("/api/reviews", { method: "POST", body: payload }),
   productReviews: (productId) => request(`/api/reviews/product/${productId}`, { auth: false }),
   productReviewSummary: (productId) => request(`/api/reviews/product/${productId}/summary`, { auth: false }),
-  farmerReviews: (farmerId) => request(`/api/reviews/farmer/${farmerId}`, { auth: false }),
+  shopReviews: (shopId) => request(`/api/reviews/shop/${shopId}`, { auth: false }),
   myReviews: () => request("/api/reviews/my-reviews"),
 
   // ---- Subscriptions ----
@@ -186,9 +186,9 @@ const api = {
   // ---- Admin ----
   adminDashboard: () => request("/api/admin/dashboard"),
   adminStatistics: () => request("/api/admin/statistics"),
-  pendingFarmers: () => request("/api/admin/farmers/pending"),
-  approveFarmer: (id) => request(`/api/admin/farmers/${id}/approve`, { method: "PUT" }),
-  rejectFarmer: (id) => request(`/api/admin/farmers/${id}/reject`, { method: "PUT" }),
+  pendingShops: () => request("/api/admin/shops/pending"),
+  approveShop: (id) => request(`/api/admin/shops/${id}/approve`, { method: "PUT" }),
+  rejectShop: (id) => request(`/api/admin/shops/${id}/reject`, { method: "PUT" }),
   adminOrders: () => request("/api/admin/orders"),
   adminConfirmOrder: (id) => request(`/api/admin/orders/${id}/confirm`, { method: "PUT" }),
 };

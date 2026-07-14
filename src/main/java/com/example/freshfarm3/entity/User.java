@@ -31,7 +31,7 @@ public class User extends BaseEntity {
     private Role role;
 
     /**
-     * Farmers start inactive until Admin approves.
+     * Shops start inactive until Admin approves.
      * Buyers are active immediately after registration.
      */
     @Builder.Default  // fix: @Builder ignores field defaults without this

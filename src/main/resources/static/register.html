@@ -14,12 +14,12 @@
 
 <div class="container auth-wrap" style="max-width:560px;">
   <div style="text-align:center;margin-bottom:18px;">
-    <img src="img/logo-full.png" alt="FreshFarm — Empowering farmers, enriching lives" style="height:110px;">
+    <img src="img/logo-full.png" alt="FreshFarm — Empowering shops, enriching lives" style="height:110px;">
   </div>
   <div class="card">
     <div class="tabs">
       <div class="tab active" data-tab="buyer">Buyer</div>
-      <div class="tab" data-tab="farmer">Farmer</div>
+      <div class="tab" data-tab="shop">Shop</div>
       <div class="tab" data-tab="agent">Delivery Agent</div>
     </div>
 
@@ -57,9 +57,9 @@
       </form>
     </div>
 
-    <!-- ============ FARMER ============ -->
-    <div class="tab-panel" id="panel-farmer">
-      <h2>Create a farmer account</h2>
+    <!-- ============ SHOP ============ -->
+    <div class="tab-panel" id="panel-shop">
+      <h2>Create a shop account</h2>
       <p class="muted">Your account is approved by an admin before your products go live — this doesn't block your ability to log in.</p>
 
       <div id="f_verifyStage">
@@ -80,7 +80,7 @@
         </div>
       </div>
 
-      <form id="farmerForm" style="display:none;margin-top:10px;">
+      <form id="shopForm" style="display:none;margin-top:10px;">
         <div class="alert alert-ok">Contact verified ✓</div>
         <label>Full name</label><input required id="f_fullName">
         <div class="field-row">
@@ -89,7 +89,7 @@
         </div>
         <label>Password (min 8 characters)</label><input type="password" required minlength="8" id="f_password">
         <div class="field-row">
-          <div><label>Farm name</label><input id="f_farmName"></div>
+          <div><label>Shop name</label><input id="f_shopName"></div>
           <div><label>Village</label><input id="f_village"></div>
         </div>
         <div class="field-row">
@@ -105,8 +105,8 @@
           <div><label>IFSC code</label><input id="f_ifsc"></div>
         </div>
         <label>Short bio</label><textarea id="f_bio"></textarea>
-        <div id="farmer-alert"></div>
-        <button class="btn btn-primary btn-block" style="margin-top:6px" type="submit">Create farmer account</button>
+        <div id="shop-alert"></div>
+        <button class="btn btn-primary btn-block" style="margin-top:6px" type="submit">Create shop account</button>
       </form>
     </div>
 
@@ -174,7 +174,7 @@ document.querySelectorAll(".tab").forEach(tab => {
 });
 
 function redirectByRole(role) {
-  if (role === "FARMER") location.href = "farmer/dashboard.html";
+  if (role === "SHOP") location.href = "shop/dashboard.html";
   else if (role === "ADMIN") location.href = "admin/dashboard.html";
   else if (role === "AGENT") location.href = "agent/dashboard.html";
   else location.href = "shop.html";
@@ -259,7 +259,7 @@ function wireOtpStage(prefix, formId) {
 }
 
 wireOtpStage("b", "buyerForm");
-wireOtpStage("f", "farmerForm");
+wireOtpStage("f", "shopForm");
 wireOtpStage("a", "agentForm");
 
 document.getElementById("buyerForm").addEventListener("submit", async (e) => {
@@ -278,16 +278,16 @@ document.getElementById("buyerForm").addEventListener("submit", async (e) => {
   } catch (err) { box.innerHTML = `<div class="alert alert-err">${err.message}</div>`; }
 });
 
-document.getElementById("farmerForm").addEventListener("submit", async (e) => {
+document.getElementById("shopForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const box = document.getElementById("farmer-alert"); box.innerHTML = "";
+  const box = document.getElementById("shop-alert"); box.innerHTML = "";
   try {
-    const auth = await api.registerFarmer({
+    const auth = await api.registerShop({
       fullName: f_fullName.value.trim(),
       email: f_email.value.trim(),
       phone: f_phone.value.trim(),
       password: f_password.value,
-      farmName: f_farmName.value.trim(),
+      shopName: f_shopName.value.trim(),
       village: f_village.value.trim(),
       district: f_district.value.trim(),
       state: f_state.value.trim(),
@@ -298,7 +298,7 @@ document.getElementById("farmerForm").addEventListener("submit", async (e) => {
       bio: f_bio.value.trim()
     });
     session.save(auth);
-    toast("Farmer account created! Your listings will need admin approval.");
+    toast("Shop account created! Your listings will need admin approval.");
     redirectByRole(auth.role);
   } catch (err) { box.innerHTML = `<div class="alert alert-err">${err.message}</div>`; }
 });

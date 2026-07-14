@@ -7,10 +7,10 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 /**
- * RegisterRequestDto — Payload for buyer and farmer registration.
+ * RegisterRequestDto — Payload for buyer and shop registration.
  *
  * Used by: POST /api/auth/register/buyer
- *          POST /api/auth/register/farmer
+ *          POST /api/auth/register/shop
  *
  * Validation annotations throw MethodArgumentNotValidException
  * if any field fails — Spring returns 400 Bad Request automatically.
@@ -21,7 +21,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class RegisterRequest {
 
-    // ── Common Fields (Buyer + Farmer) ──
+    // ── Common Fields (Buyer + Shop) ──
 
     @NotBlank(message = "Full name is required")
     @Size(min = 2, max = 100, message = "Full name must be 2–100 characters")
@@ -39,9 +39,9 @@ public class RegisterRequest {
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
 
-    // ── Farmer-Only Fields (optional for buyers, validated in service) ──
+    // ── Shop-Only Fields (optional for buyers, validated in service) ──
 
-    private String farmName;
+    private String shopName;
 
     private String village;
 

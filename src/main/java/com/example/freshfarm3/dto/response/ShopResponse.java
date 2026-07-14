@@ -5,21 +5,21 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * FarmerResponse — Full profile view of a Farmer, returned from
- * "my profile" / farmer-detail endpoints.
+ * ShopResponse — Full profile view of a Shop, returned from
+ * "my profile" / shop-detail endpoints.
  *
- * (For the trimmed-down list admins see while approving pending farmers,
- * see {@link DashboardStatsResponse.FarmerSummary} instead — this one
- * carries the fuller set of fields a farmer needs to see about themself.)
+ * (For the trimmed-down list admins see while approving pending shops,
+ * see {@link DashboardStatsResponse.ShopSummary} instead — this one
+ * carries the fuller set of fields a shop needs to see about themself.)
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FarmerResponse {
+public class ShopResponse {
 
-    private Long farmerId;
+    private Long shopId;
 
     // ── Account info (from the linked User) ─────────────────────
     private String fullName;
@@ -27,12 +27,12 @@ public class FarmerResponse {
     private String phone;
 
     // ── Farm profile ─────────────────────────────────────────────
-    private String farmName;
+    private String shopName;
     private String village;
     private String district;
     private String state;
     private String pincode;
-    private String farmLocation;   // village + district + state, combined
+    private String shopLocation;   // village + district + state, combined
     private String bio;
 
     // ── Approval workflow ────────────────────────────────────────

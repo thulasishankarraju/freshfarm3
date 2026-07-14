@@ -37,8 +37,8 @@ public class Order extends BaseEntity {
 
     // Flat ₹5 platform fee charged to the buyer on every order. Shown to
     // the buyer as its own line item — this is separate from (and does
-    // NOT affect) the farmer-side platform fee, which is deducted from
-    // farmer earnings and is never exposed on the buyer's order data.
+    // NOT affect) the shop-side platform fee, which is deducted from
+    // shop earnings and is never exposed on the buyer's order data.
     @Column(nullable = false, precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal platformFee = BigDecimal.ZERO;

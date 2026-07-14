@@ -14,17 +14,17 @@
 
 <div class="container auth-wrap">
   <div style="text-align:center;margin-bottom:18px;">
-    <img src="img/logo-full.png" alt="FreshFarm — Empowering farmers, enriching lives" style="height:120px;">
+    <img src="img/logo-full.png" alt="FreshFarm — Empowering shops, enriching lives" style="height:120px;">
   </div>
   <div class="card">
     <div class="tabs">
-      <div class="tab active" data-tab="std">Buyer / Farmer / Admin</div>
+      <div class="tab active" data-tab="std">Buyer / Shop / Admin</div>
       <div class="tab" data-tab="agent">Delivery Agent</div>
     </div>
 
     <div class="tab-panel active" id="panel-std">
       <h2>Welcome back</h2>
-      <p class="muted">Log in with the account you registered as a buyer or farmer. Admin uses the same form.</p>
+      <p class="muted">Log in with the account you registered as a buyer or shop. Admin uses the same form.</p>
       <div id="std-alert"></div>
       <form id="stdForm">
         <label>Email</label>
@@ -68,7 +68,7 @@ document.querySelectorAll(".tab").forEach(tab => {
 });
 
 function redirectByRole(role) {
-  if (role === "FARMER") location.href = "farmer/dashboard.html";
+  if (role === "SHOP") location.href = "shop/dashboard.html";
   else if (role === "ADMIN") location.href = "admin/dashboard.html";
   else if (role === "AGENT") location.href = "agent/dashboard.html";
   else location.href = "shop.html";

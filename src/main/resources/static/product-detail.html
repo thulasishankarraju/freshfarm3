@@ -48,7 +48,7 @@ async function load() {
         <div>
           <span class="eyebrow">${p.categoryName || ""}</span>
           <h1>${p.name}</h1>
-          <p class="muted">Sold by ${p.farmName || p.farmerName || "a FarmFresh farmer"}</p>
+          <p class="muted">Sold by ${p.shopName || p.ownerName || "a FarmFresh shop"}</p>
           ${summary ? `<p>${stars(summary.averageRating)} <span class="muted">(${summary.totalReviews || 0} reviews)</span></p>` : ""}
           <p>${p.description || ""}</p>
           <h2 style="color:var(--primary-d)">${money(p.price)}</h2>

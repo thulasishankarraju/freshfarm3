@@ -1,10 +1,10 @@
 package com.example.freshfarm3.controller;
 
 import com.example.freshfarm3.dto.response.ProductResponse;
-import com.example.freshfarm3.entity.Farmer;
+import com.example.freshfarm3.entity.Shop;
 import com.example.freshfarm3.entity.Product;
 import com.example.freshfarm3.entity.User;
-import com.example.freshfarm3.repository.FarmerRepository;
+import com.example.freshfarm3.repository.ShopRepository;
 import com.example.freshfarm3.repository.ProductRepository;
 import com.example.freshfarm3.repository.UserRepository;
 import com.example.freshfarm3.service.ProductService;
@@ -20,35 +20,35 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/farmer")
-@PreAuthorize("hasRole('FARMER')")
+@RequestMapping("/api/shop")
+@PreAuthorize("hasRole('SHOP')")
 @RequiredArgsConstructor
 @Slf4j
-public class FarmerController {
+public class ShopController {
 
     private final ProductService    productService;
     private final ProductRepository productRepository;
-    private final FarmerRepository  farmerRepository;
+    private final ShopRepository  shopRepository;
     private final UserRepository    userRepository;
 
     // ── Dashboard summary ─────────────────────────────────────
 
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> getDashboard() {
-        Farmer farmer = getAuthenticatedFarmer();
+        Shop shop = getAuthenticatedShop();
 
         long activeCount = productRepository
-                .countByFarmerAndStatus(farmer, Product.ProductStatus.ACTIVE);
+                .countByShopAndStatus(shop, Product.ProductStatus.ACTIVE);
         long inactiveCount = productRepository
-                .countByFarmerAndStatus(farmer, Product.ProductStatus.INACTIVE);
+                .countByShopAndStatus(shop, Product.ProductStatus.INACTIVE);
         long outOfStockCount = productRepository
-                .countByFarmerAndStatus(farmer, Product.ProductStatus.OUT_OF_STOCK);
-        long totalCount = productRepository.countByFarmer(farmer);
+                .countByShopAndStatus(shop, Product.ProductStatus.OUT_OF_STOCK);
+        long totalCount = productRepository.countByShop(shop);
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("farmerId", farmer.getId());
-        response.put("farmerName", farmer.getUser().getFullName());
-        response.put("farmName", farmer.getFarmName());
+        response.put("shopId", shop.getId());
+        response.put("ownerName", shop.getUser().getFullName());
+        response.put("shopName", shop.getShopName());
         response.put("activeProducts", activeCount);
         response.put("inactiveProducts", inactiveCount);
         response.put("outOfStock", outOfStockCount);
@@ -68,13 +68,13 @@ public class FarmerController {
 
     // ── Private helper ────────────────────────────────────────
 
-    private Farmer getAuthenticatedFarmer() {
+    private Shop getAuthenticatedShop() {
         String email = SecurityContextHolder.getContext()
                 .getAuthentication().getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
-        return farmerRepository.findByUser(user)
+        return shopRepository.findByUser(user)
                 .orElseThrow(() -> new RuntimeException(
-                        "Farmer profile not found for: " + email));
+                        "Shop profile not found for: " + email));
     }
 }

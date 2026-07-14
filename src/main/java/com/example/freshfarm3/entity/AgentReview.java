@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 /**
  * AgentReview — a buyer's 1–5 star rating of the delivery agent who
  * delivered an order. Separate from Review (which rates the product/
- * farmer) since it's a different subject and a different cardinality:
+ * shop) since it's a different subject and a different cardinality:
  * one agent per order (via Delivery), vs. potentially several
- * products/farmers per order.
+ * products/shops per order.
  */
 @Entity
 @Table(

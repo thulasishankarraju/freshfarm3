@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 /**
  * AgentReviewService — buyer rates the delivery agent (1–5 stars) after
- * their order is DELIVERED. Mirrors ReviewService's product/farmer review
+ * their order is DELIVERED. Mirrors ReviewService's product/shop review
  * flow, but the "subject" being reviewed is the agent assigned via
  * Delivery, not a product.
  */

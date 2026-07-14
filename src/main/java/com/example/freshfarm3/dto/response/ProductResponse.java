@@ -27,10 +27,10 @@ public class ProductResponse {
     private Long categoryId;
     private String categoryName;
 
-    // Farmer info
-    private Long farmerId;
-    private String farmerName;
-    private String farmName;
+    // Shop info
+    private Long shopId;
+    private String ownerName;
+    private String shopName;
 
     // Images
     private String primaryImageUrl;

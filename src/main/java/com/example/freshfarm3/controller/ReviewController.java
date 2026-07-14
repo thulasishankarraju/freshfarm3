@@ -60,13 +60,13 @@ public class ReviewController {
     }
 
     /**
-     * GET /api/reviews/farmer/{farmerId}
-     * Farmers and buyers can view farmer reviews.
+     * GET /api/reviews/shop/{shopId}
+     * Shops and buyers can view shop reviews.
      */
-    @GetMapping("/farmer/{farmerId}")
-    public ResponseEntity<List<ReviewResponse>> getReviewsByFarmer(@PathVariable Long farmerId) {
-        log.info("GET /api/reviews/farmer/{}", farmerId);
-        return ResponseEntity.ok(reviewService.getReviewsByFarmer(farmerId));
+    @GetMapping("/shop/{shopId}")
+    public ResponseEntity<List<ReviewResponse>> getReviewsByShop(@PathVariable Long shopId) {
+        log.info("GET /api/reviews/shop/{}", shopId);
+        return ResponseEntity.ok(reviewService.getReviewsByShop(shopId));
     }
 
     /**

@@ -16,7 +16,7 @@
   <h2>Admin dashboard</h2>
   <div id="stats" class="grid grid-3"><p class="muted">Loading…</p></div>
 
-  <div class="section-head" style="margin-top:34px;"><h3>Pending farmer approvals</h3></div>
+  <div class="section-head" style="margin-top:34px;"><h3>Pending shop approvals</h3></div>
   <div id="pendingBox"><p class="muted">Loading…</p></div>
 </div>
 
@@ -33,8 +33,8 @@ async function loadStats() {
     box.innerHTML = `
       <div class="stat"><div class="num">${d.totalUsers ?? 0}</div><div class="label">Total users</div></div>
       <div class="stat"><div class="num">${d.totalBuyers ?? 0}</div><div class="label">Buyers</div></div>
-      <div class="stat"><div class="num">${d.totalFarmers ?? 0}</div><div class="label">Farmers</div></div>
-      <div class="stat"><div class="num">${d.pendingFarmers ?? 0}</div><div class="label">Pending approvals</div></div>
+      <div class="stat"><div class="num">${d.totalShops ?? 0}</div><div class="label">Shops</div></div>
+      <div class="stat"><div class="num">${d.pendingShops ?? 0}</div><div class="label">Pending approvals</div></div>
       <div class="stat"><div class="num">${d.totalProducts ?? 0}</div><div class="label">Total products</div></div>
       <div class="stat"><div class="num">${d.totalOrders ?? 0}</div><div class="label">Total orders</div></div>
       <div class="stat"><div class="num">${money(d.totalRevenue)}</div><div class="label">Total revenue</div></div>
@@ -49,17 +49,17 @@ async function loadStats() {
 async function loadPending() {
   const box = document.getElementById("pendingBox");
   try {
-    const farmers = await api.pendingFarmers();
-    if (!farmers.length) { box.innerHTML = `<p class="muted">No farmers awaiting approval.</p>`; return; }
-    box.innerHTML = farmers.map(f => `
+    const shops = await api.pendingShops();
+    if (!shops.length) { box.innerHTML = `<p class="muted">No shops awaiting approval.</p>`; return; }
+    box.innerHTML = shops.map(f => `
       <div class="card flex-between" style="margin-bottom:12px;">
         <div>
-          <strong>${f.farmerName}</strong> — ${f.farmName || ''}
-          <div class="muted">${f.email} · ${f.phone || ''} · ${f.farmLocation || ''}</div>
+          <strong>${f.ownerName}</strong> — ${f.shopName || ''}
+          <div class="muted">${f.email} · ${f.phone || ''} · ${f.shopLocation || ''}</div>
         </div>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary btn-sm" onclick="approve(${f.farmerId})">Approve</button>
-          <button class="btn btn-danger btn-sm" onclick="reject(${f.farmerId})">Reject</button>
+          <button class="btn btn-primary btn-sm" onclick="approve(${f.shopId})">Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="reject(${f.shopId})">Reject</button>
         </div>
       </div>`).join("");
   } catch (e) {
@@ -67,8 +67,8 @@ async function loadPending() {
   }
 }
 
-async function approve(id) { try { await api.approveFarmer(id); toast("Farmer approved"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
-async function reject(id) { try { await api.rejectFarmer(id); toast("Farmer rejected"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+async function approve(id) { try { await api.approveShop(id); toast("Shop approved"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+async function reject(id) { try { await api.rejectShop(id); toast("Shop rejected"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
 </script>
 </body>
 </html>

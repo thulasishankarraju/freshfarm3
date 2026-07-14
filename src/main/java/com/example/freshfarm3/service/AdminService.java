@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AdminService {
 
-    private final FarmerRepository farmerRepository;
+    private final ShopRepository shopRepository;
     private final BuyerRepository buyerRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
@@ -43,10 +43,10 @@ public class AdminService {
 
         long totalUsers = userRepository.count();
         long totalBuyers = buyerRepository.count();
-        long totalFarmers = farmerRepository.count();
+        long totalShops = shopRepository.count();
 
-        long approvedFarmers = farmerRepository.countByApproved(true);
-        long pendingFarmers = totalFarmers - approvedFarmers;
+        long approvedShops = shopRepository.countByApproved(true);
+        long pendingShops = totalShops - approvedShops;
 
         long totalProducts = productRepository.count();
 
@@ -87,9 +87,9 @@ public class AdminService {
         return DashboardStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .totalBuyers(totalBuyers)
-                .totalFarmers(totalFarmers)
-                .approvedFarmers(approvedFarmers)
-                .pendingFarmers(pendingFarmers)
+                .totalShops(totalShops)
+                .approvedShops(approvedShops)
+                .pendingShops(pendingShops)
                 .totalProducts(totalProducts)
                 .activeProducts(activeProducts)
                 .totalOrders(totalOrders)
@@ -107,7 +107,7 @@ public class AdminService {
                 .revenueByMonth(buildRevenueByMonth())
                 .ordersByMonth(buildOrdersByMonth())
                 .topProducts(buildTopProducts())
-                .topFarmers(buildTopFarmers())
+                .topShops(buildTopShops())
                 .build();
     }
 
@@ -204,31 +204,31 @@ public class AdminService {
                 .collect(Collectors.toList());
     }
 
-    private List<Map<String, Object>> buildTopFarmers() {
-        Map<Farmer, List<Review>> reviewsByFarmer = reviewRepository.findAll().stream()
-                .collect(Collectors.groupingBy(Review::getFarmer));
+    private List<Map<String, Object>> buildTopShops() {
+        Map<Shop, List<Review>> reviewsByShop = reviewRepository.findAll().stream()
+                .collect(Collectors.groupingBy(Review::getShop));
 
-        Map<Farmer, BigDecimal> revenueByFarmer = new HashMap<>();
+        Map<Shop, BigDecimal> revenueByShop = new HashMap<>();
         orderRepository.findAll().forEach(order -> {
             if (order.getItems() == null) return;
             order.getItems().forEach(item -> {
-                Farmer farmer = item.getProduct().getFarmer();
-                revenueByFarmer.merge(farmer, item.getSubtotal(), BigDecimal::add);
+                Shop shop = item.getProduct().getShop();
+                revenueByShop.merge(shop, item.getSubtotal(), BigDecimal::add);
             });
         });
 
-        return reviewsByFarmer.entrySet().stream()
+        return reviewsByShop.entrySet().stream()
                 .map(entry -> {
-                    Farmer farmer = entry.getKey();
+                    Shop shop = entry.getKey();
                     double avgRating = entry.getValue().stream()
                             .mapToInt(Review::getRating)
                             .average()
                             .orElse(0.0);
 
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("name", farmer.getFarmName());
+                    row.put("name", shop.getShopName());
                     row.put("rating", Math.round(avgRating * 10.0) / 10.0);
-                    row.put("totalSales", revenueByFarmer.getOrDefault(farmer, BigDecimal.ZERO));
+                    row.put("totalSales", revenueByShop.getOrDefault(shop, BigDecimal.ZERO));
                     return row;
                 })
                 .sorted((a, b) -> Double.compare((double) b.get("rating"), (double) a.get("rating")))
@@ -237,60 +237,60 @@ public class AdminService {
     }
 
     // ===========================================================
-    // Pending Farmers
+    // Pending Shops
     // ===========================================================
 
     @Transactional(readOnly = true)
-    public List<DashboardStatsResponse.FarmerSummary> getPendingFarmers() {
-        return farmerRepository.findByApproved(false)
+    public List<DashboardStatsResponse.ShopSummary> getPendingShops() {
+        return shopRepository.findByApproved(false)
                 .stream()
-                .map(this::mapToFarmerSummary)
+                .map(this::mapToShopSummary)
                 .collect(Collectors.toList());
     }
 
-    private DashboardStatsResponse.FarmerSummary mapToFarmerSummary(Farmer farmer) {
-        User user = farmer.getUser();
+    private DashboardStatsResponse.ShopSummary mapToShopSummary(Shop shop) {
+        User user = shop.getUser();
 
         String location = String.join(", ",
-                Optional.ofNullable(farmer.getVillage()).orElse(""),
-                Optional.ofNullable(farmer.getDistrict()).orElse(""),
-                Optional.ofNullable(farmer.getState()).orElse("")
+                Optional.ofNullable(shop.getVillage()).orElse(""),
+                Optional.ofNullable(shop.getDistrict()).orElse(""),
+                Optional.ofNullable(shop.getState()).orElse("")
         ).replaceAll("(, )+", ", ").replaceAll("^, |, $", "");
 
-        return DashboardStatsResponse.FarmerSummary.builder()
-                .farmerId(farmer.getId())
-                .farmerName(user != null ? user.getFullName() : null)
+        return DashboardStatsResponse.ShopSummary.builder()
+                .shopId(shop.getId())
+                .ownerName(user != null ? user.getFullName() : null)
                 .email(user != null ? user.getEmail() : null)
                 .phone(user != null ? user.getPhone() : null)
-                .farmName(farmer.getFarmName())
-                .farmLocation(location)
-                .approvalStatus(farmer.isApproved() ? "APPROVED" : "PENDING")
-                .registeredDate(farmer.getCreatedAt() != null
-                        ? farmer.getCreatedAt().toLocalDate().toString()
+                .shopName(shop.getShopName())
+                .shopLocation(location)
+                .approvalStatus(shop.isApproved() ? "APPROVED" : "PENDING")
+                .registeredDate(shop.getCreatedAt() != null
+                        ? shop.getCreatedAt().toLocalDate().toString()
                         : null)
                 .build();
     }
 
     @Transactional
-    public DashboardStatsResponse.FarmerSummary approveFarmer(Long farmerId) {
-        Farmer farmer = farmerRepository.findById(farmerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found with id: " + farmerId));
+    public DashboardStatsResponse.ShopSummary approveShop(Long shopId) {
+        Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + shopId));
 
-        farmer.setApproved(true);
-        Farmer saved = farmerRepository.save(farmer);
+        shop.setApproved(true);
+        Shop saved = shopRepository.save(shop);
 
-        return mapToFarmerSummary(saved);
+        return mapToShopSummary(saved);
     }
 
     @Transactional
-    public DashboardStatsResponse.FarmerSummary rejectFarmer(Long farmerId) {
-        Farmer farmer = farmerRepository.findById(farmerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found with id: " + farmerId));
+    public DashboardStatsResponse.ShopSummary rejectShop(Long shopId) {
+        Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + shopId));
 
-        farmer.setApproved(false);
-        Farmer saved = farmerRepository.save(farmer);
+        shop.setApproved(false);
+        Shop saved = shopRepository.save(shop);
 
-        return mapToFarmerSummary(saved);
+        return mapToShopSummary(saved);
     }
 
     // ===========================================================
@@ -305,7 +305,7 @@ public class AdminService {
                 .collect(Collectors.toList());
     }
 
-    // There was previously no way for anyone (admin or farmer) to move
+    // There was previously no way for anyone (admin or shop) to move
     // an order out of PENDING. That silently blocked delivery assignment
     // too, since DeliveryService.assignDelivery expects CONFIRMED/PROCESSING.
     @Transactional
@@ -353,9 +353,9 @@ public class AdminService {
     public Map<String, Object> getPlatformStatistics() {
         long totalUsers = userRepository.count();
         long totalBuyers = buyerRepository.count();
-        long totalFarmers = farmerRepository.count();
-        long approvedFarmers = farmerRepository.countByApproved(true);
-        long pendingFarmers = totalFarmers - approvedFarmers;
+        long totalShops = shopRepository.count();
+        long approvedShops = shopRepository.countByApproved(true);
+        long pendingShops = totalShops - approvedShops;
 
         long totalProducts = productRepository.count();
         long totalOrders = orderRepository.count();
@@ -373,9 +373,9 @@ public class AdminService {
         Map<String, Object> stats = new LinkedHashMap<>();
         stats.put("totalUsers", totalUsers);
         stats.put("totalBuyers", totalBuyers);
-        stats.put("totalFarmers", totalFarmers);
-        stats.put("approvedFarmers", approvedFarmers);
-        stats.put("pendingFarmers", pendingFarmers);
+        stats.put("totalShops", totalShops);
+        stats.put("approvedShops", approvedShops);
+        stats.put("pendingShops", pendingShops);
         stats.put("totalProducts", totalProducts);
         stats.put("totalOrders", totalOrders);
         stats.put("totalRevenue", totalRevenue);

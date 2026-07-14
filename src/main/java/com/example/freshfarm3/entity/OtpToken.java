@@ -35,7 +35,7 @@ public class OtpToken {
     private boolean used = false;      // flipped to true once verified
 
     @Column
-    private String userRole;           // "BUYER" or "FARMER" — needed for forgot-password
+    private String userRole;           // "BUYER" or "SHOP" — needed for forgot-password
 
     public boolean isExpired() {
         return LocalDateTime.now().isAfter(this.expiresAt);

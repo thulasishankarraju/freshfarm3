@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="../img/logo-icon.png">
-<title>Farmer dashboard — FarmFresh</title>
+<title>Shop dashboard — FarmFresh</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
@@ -13,7 +13,7 @@
 <div id="nav"></div>
 
 <div class="container page">
-  <h2>Farmer dashboard</h2>
+  <h2>Shop dashboard</h2>
   <div id="stats" class="grid grid-3" style="margin-bottom:30px;"><p class="muted">Loading…</p></div>
 
   <div class="section-head"><h3>Orders on my products</h3></div>
@@ -24,19 +24,19 @@
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
-if (requireAuth(["FARMER"])) { loadStats(); loadOrders(); }
+if (requireAuth(["SHOP"])) { loadStats(); loadOrders(); }
 
 async function loadStats() {
   const box = document.getElementById("stats");
   try {
-    // GET /api/farmer/dashboard — returns farmerId, farmerName, farmName,
+    // GET /api/shop/dashboard — returns shopId, ownerName, shopName,
     // activeProducts, inactiveProducts, outOfStock, totalProducts
-    const d = await api.farmerDashboard();
+    const d = await api.shopDashboard();
     box.innerHTML = `
       <div class="stat"><div class="num">${d.activeProducts ?? 0}</div><div class="label">Active products</div></div>
       <div class="stat"><div class="num">${d.inactiveProducts ?? 0}</div><div class="label">Inactive</div></div>
       <div class="stat"><div class="num">${d.outOfStock ?? 0}</div><div class="label">Out of stock</div></div>
-      <div class="stat"><div class="num">${d.totalProducts ?? 0}</div><div class="label">Total products (${d.farmName || ''})</div></div>
+      <div class="stat"><div class="num">${d.totalProducts ?? 0}</div><div class="label">Total products (${d.shopName || ''})</div></div>
     `;
   } catch (e) {
     box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
@@ -46,7 +46,7 @@ async function loadStats() {
 async function loadOrders() {
   const box = document.getElementById("ordersBox");
   try {
-    const orders = await api.farmerOrders();
+    const orders = await api.shopOrders();
     if (!orders.length) { box.innerHTML = `<p class="muted">No orders yet.</p>`; return; }
     box.innerHTML = orders.map(o => `
       <div class="card" style="margin-bottom:12px;">

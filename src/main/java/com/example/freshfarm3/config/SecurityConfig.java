@@ -57,7 +57,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/reviews/farmer/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/shop/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 
                         .requestMatchers(
@@ -65,18 +65,18 @@ public class SecurityConfig {
                                 "/checkout.html", "/login.html", "/register.html",
                                 "/product-detail.html", "/order-success.html",
                                 "/orders.html", "/subscriptions.html", "/forgot-password.html",
-                                "/farmer/**", "/admin/**", "/agent/**",
+                                "/shop/**", "/admin/**", "/agent/**",
                                 "/css/**", "/js/**", "/images/**", "/img/**", "/favicon.ico"
                         ).permitAll()
 
                         .requestMatchers("/api/buyers/**").hasRole("BUYER")
-                        .requestMatchers("/api/farmers/**").hasAnyRole("FARMER", "ADMIN")
+                        .requestMatchers("/api/shops/**").hasAnyRole("SHOP", "ADMIN")
 
                         .requestMatchers("/api/cart/**").hasRole("BUYER")
 
                         // More specific /api/orders/** rules MUST come before the general one below,
                         // since Spring Security uses first-match-wins.
-                        .requestMatchers("/api/orders/farmer/**").hasAnyRole("FARMER", "ADMIN")
+                        .requestMatchers("/api/orders/shop/**").hasAnyRole("SHOP", "ADMIN")
                         .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/orders/**").hasAnyRole("BUYER", "ADMIN")
 

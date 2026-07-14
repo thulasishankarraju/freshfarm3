@@ -2,7 +2,7 @@ package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.dto.request.CheckoutRequest;
 import com.example.freshfarm3.dto.response.CheckoutResponse;
-import com.example.freshfarm3.dto.response.FarmerOrderResponse;
+import com.example.freshfarm3.dto.response.ShopOrderResponse;
 import com.example.freshfarm3.entity.*;
 import com.example.freshfarm3.repository.*;
 import com.example.freshfarm3.enums.OrderStatus;
@@ -33,16 +33,16 @@ public class OrderService {
     private final NotificationRepository notificationRepository;
     private final OrderNumberGenerator   orderNumberGenerator;
     private final DeliveryChargeService  deliveryChargeService;
-    private final FarmerRepository       farmerRepository;
+    private final ShopRepository       shopRepository;
 
     // Flat ₹5 platform fee charged to the buyer on every order (shown to the buyer).
     private static final BigDecimal BUYER_PLATFORM_FEE = BigDecimal.valueOf(5);
 
-    // Flat ₹5 platform fee deducted from each farmer's earnings on every order they're
+    // Flat ₹5 platform fee deducted from each shop's earnings on every order they're
     // part of. This is entirely separate from BUYER_PLATFORM_FEE above and must never
     // be surfaced through any buyer-facing endpoint or DTO (CheckoutResponse) — only
-    // through FarmerOrderResponse, which buyers never receive.
-    private static final BigDecimal FARMER_PLATFORM_FEE = BigDecimal.valueOf(5);
+    // through ShopOrderResponse, which buyers never receive.
+    private static final BigDecimal SHOP_PLATFORM_FEE = BigDecimal.valueOf(5);
 
     // ── PLACE ORDER ───────────────────────────────────────────────
     @Transactional
@@ -145,7 +145,7 @@ public class OrderService {
         }
         orderItemRepository.saveAll(orderItems);
 
-        // 10. Save notifications (buyer + farmers)
+        // 10. Save notifications (buyer + shops)
         saveOrderNotifications(savedOrder, buyer, cartItems);
 
         // 11. Clear cart
@@ -224,28 +224,28 @@ public class OrderService {
         return buildCheckoutResponse(order, items, order.getDeliveryAddress());
     }
 
-    // ── FARMER: VIEW ORDERS FOR MY PRODUCTS ───────────────────────
-    // Returns FarmerOrderResponse (not CheckoutResponse): only this
-    // farmer's own items in each order, plus their earnings breakdown
-    // (gross → platform fee → net). The farmer platform fee here is
+    // ── SHOP: VIEW ORDERS FOR MY PRODUCTS ───────────────────────
+    // Returns ShopOrderResponse (not CheckoutResponse): only this
+    // shop's own items in each order, plus their earnings breakdown
+    // (gross → platform fee → net). The shop platform fee here is
     // never exposed to buyers — CheckoutResponse has no such field.
     @Transactional(readOnly = true)
-    public List<FarmerOrderResponse> getOrdersForFarmer(String farmerEmail) {
-        Farmer farmer = farmerRepository.findByUser_Email(farmerEmail)
-                .orElseThrow(() -> new RuntimeException("Farmer not found"));
+    public List<ShopOrderResponse> getOrdersForShop(String shopEmail) {
+        Shop shop = shopRepository.findByUser_Email(shopEmail)
+                .orElseThrow(() -> new RuntimeException("Shop not found"));
 
-        return orderRepository.findByItems_Product_Farmer_User_Email(farmerEmail).stream()
-                .map(order -> buildFarmerOrderResponse(order, farmer))
+        return orderRepository.findByItems_Product_Shop_User_Email(shopEmail).stream()
+                .map(order -> buildShopOrderResponse(order, shop))
                 .collect(Collectors.toList());
     }
 
-    private FarmerOrderResponse buildFarmerOrderResponse(Order order, Farmer farmer) {
+    private ShopOrderResponse buildShopOrderResponse(Order order, Shop shop) {
         List<OrderItem> myItems = orderItemRepository.findByOrder(order).stream()
-                .filter(oi -> oi.getProduct().getFarmer().getId().equals(farmer.getId()))
+                .filter(oi -> oi.getProduct().getShop().getId().equals(shop.getId()))
                 .collect(Collectors.toList());
 
-        List<FarmerOrderResponse.OrderItemDto> itemDtos = myItems.stream()
-                .map(oi -> FarmerOrderResponse.OrderItemDto.builder()
+        List<ShopOrderResponse.OrderItemDto> itemDtos = myItems.stream()
+                .map(oi -> ShopOrderResponse.OrderItemDto.builder()
                         .productId(oi.getProduct().getId())
                         .productName(oi.getProduct().getName())
                         .quantity(oi.getQuantity())
@@ -258,13 +258,13 @@ public class OrderService {
         BigDecimal grossEarnings = myItems.stream()
                 .map(OrderItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal netEarnings = grossEarnings.subtract(FARMER_PLATFORM_FEE);
+        BigDecimal netEarnings = grossEarnings.subtract(SHOP_PLATFORM_FEE);
 
         Address address = order.getDeliveryAddress();
         String addressStr = address.getAddressLine() + ", " + address.getCity() +
                 ", " + address.getState() + " - " + address.getPincode();
 
-        return FarmerOrderResponse.builder()
+        return ShopOrderResponse.builder()
                 .orderId(order.getId())
                 .orderNumber(order.getOrderNumber())
                 .orderStatus(order.getOrderStatus())
@@ -273,7 +273,7 @@ public class OrderService {
                 .deliveryAddress(addressStr)
                 .items(itemDtos)
                 .grossEarnings(grossEarnings)
-                .platformFee(FARMER_PLATFORM_FEE)
+                .platformFee(SHOP_PLATFORM_FEE)
                 .netEarnings(netEarnings)
                 .build();
     }
@@ -309,18 +309,18 @@ public class OrderService {
         buyerNotif.setIsRead(false);
         notificationRepository.save(buyerNotif);
 
-        // Notify each unique farmer who has a product in this order
+        // Notify each unique shop who has a product in this order
         cartItems.stream()
-                .map(ci -> ci.getProduct().getFarmer())
+                .map(ci -> ci.getProduct().getShop())
                 .distinct()
-                .forEach(farmer -> {
-                    Notification farmerNotif = new Notification();
-                    farmerNotif.setUser(farmer.getUser());
-                    farmerNotif.setTitle("New Order Received! 🧑‍🌾");
-                    farmerNotif.setMessage("You have a new order #" + order.getOrderNumber() +
+                .forEach(shop -> {
+                    Notification shopNotif = new Notification();
+                    shopNotif.setUser(shop.getUser());
+                    shopNotif.setTitle("New Order Received! 🧑‍🌾");
+                    shopNotif.setMessage("You have a new order #" + order.getOrderNumber() +
                             " from " + buyer.getUser().getFullName() + ". Please confirm it.");
-                    farmerNotif.setIsRead(false);
-                    notificationRepository.save(farmerNotif);
+                    shopNotif.setIsRead(false);
+                    notificationRepository.save(shopNotif);
                 });
     }
 

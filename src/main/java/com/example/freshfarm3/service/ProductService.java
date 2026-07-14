@@ -3,13 +3,13 @@ package com.example.freshfarm3.service;
 import com.example.freshfarm3.dto.request.ProductRequest;
 import com.example.freshfarm3.dto.response.ProductResponse;
 import com.example.freshfarm3.entity.Category;
-import com.example.freshfarm3.entity.Farmer;
+import com.example.freshfarm3.entity.Shop;
 import com.example.freshfarm3.entity.Product;
 import com.example.freshfarm3.entity.ProductImage;
 import com.example.freshfarm3.enums.UnitType;
 import com.example.freshfarm3.exception.ResourceNotFoundException;
 import com.example.freshfarm3.repository.CategoryRepository;
-import com.example.freshfarm3.repository.FarmerRepository;
+import com.example.freshfarm3.repository.ShopRepository;
 import com.example.freshfarm3.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,17 +30,17 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductRepository    productRepository;
-    private final FarmerRepository     farmerRepository;
+    private final ShopRepository     shopRepository;
     private final CategoryRepository   categoryRepository;
     private final FileUploadService    fileUploadService;
 
     // ── CREATE ───────────────────────────────────────────────────
     @Transactional
     public ProductResponse createProduct(ProductRequest req,
-                                         String farmerEmail,
+                                         String shopEmail,
                                          List<MultipartFile> images) {
-        Farmer farmer = farmerRepository.findByUser_Email(farmerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found"));
+        Shop shop = shopRepository.findByUser_Email(shopEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
 
         Category category = categoryRepository.findById(req.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
@@ -61,7 +61,7 @@ public class ProductService {
                 .status(resolveStatus(req.getStatus()))
                 .isOrganic(false) // TODO: ProductRequest has no isOrganic field yet
                 .category(category)
-                .farmer(farmer)
+                .shop(shop)
                 .build();
 
         if (images != null && !images.isEmpty()) {
@@ -79,7 +79,7 @@ public class ProductService {
         }
 
         Product saved = productRepository.save(product);
-        log.info("Product created: {} by farmer: {}", saved.getId(), farmerEmail);
+        log.info("Product created: {} by shop: {}", saved.getId(), shopEmail);
         return mapToResponse(saved);
     }
 
@@ -87,8 +87,8 @@ public class ProductService {
     @Transactional
     public ProductResponse updateProduct(Long productId,
                                          ProductRequest req,
-                                         String farmerEmail) {
-        Product product = getProductOwnedByFarmer(productId, farmerEmail);
+                                         String shopEmail) {
+        Product product = getProductOwnedByShop(productId, shopEmail);
 
         product.setName(req.getName());
         product.setDescription(req.getDescription());
@@ -116,16 +116,16 @@ public class ProductService {
         }
 
         Product updated = productRepository.save(product);
-        log.info("Product updated: {} by farmer: {}", productId, farmerEmail);
+        log.info("Product updated: {} by shop: {}", productId, shopEmail);
         return mapToResponse(updated);
     }
 
     // ── DELETE ───────────────────────────────────────────────────
     @Transactional
-    public void deleteProduct(Long productId, String farmerEmail) {
-        Product product = getProductOwnedByFarmer(productId, farmerEmail);
+    public void deleteProduct(Long productId, String shopEmail) {
+        Product product = getProductOwnedByShop(productId, shopEmail);
         productRepository.delete(product);
-        log.info("Product deleted: {} by farmer: {}", productId, farmerEmail);
+        log.info("Product deleted: {} by shop: {}", productId, shopEmail);
     }
 
     // ── READ ─────────────────────────────────────────────────────
@@ -157,10 +157,10 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponse> getMyProducts(String farmerEmail) {
-        Farmer farmer = farmerRepository.findByUser_Email(farmerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found"));
-        return productRepository.findByFarmer(farmer).stream()
+    public List<ProductResponse> getMyProducts(String shopEmail) {
+        Shop shop = shopRepository.findByUser_Email(shopEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
+        return productRepository.findByShop(shop).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -205,11 +205,11 @@ public class ProductService {
     }
 
     // ── INTERNAL HELPERS ─────────────────────────────────────────
-    private Product getProductOwnedByFarmer(Long productId, String farmerEmail) {
+    private Product getProductOwnedByShop(Long productId, String shopEmail) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
 
-        if (!product.getFarmer().getUser().getEmail().equals(farmerEmail)) {
+        if (!product.getShop().getUser().getEmail().equals(shopEmail)) {
             throw new AccessDeniedException("You do not own this product");
         }
         return product;
@@ -267,9 +267,9 @@ public class ProductService {
                 .status(p.getStatus() != null ? p.getStatus().name() : null)
                 .categoryId(p.getCategory().getId())
                 .categoryName(p.getCategory().getName())
-                .farmerId(p.getFarmer().getId())
-                .farmerName(p.getFarmer().getUser().getFullName())
-                .farmName(p.getFarmer().getFarmName())
+                .shopId(p.getShop().getId())
+                .ownerName(p.getShop().getUser().getFullName())
+                .shopName(p.getShop().getShopName())
                 .primaryImageUrl(imageUrls.isEmpty() ? null : imageUrls.get(0))
                 .imageUrls(imageUrls)
                 .createdAt(p.getCreatedAt())

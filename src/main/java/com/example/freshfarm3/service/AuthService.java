@@ -9,12 +9,12 @@ import com.example.freshfarm3.dto.request.SendOtpRequest;
 import com.example.freshfarm3.dto.response.AuthResponse;
 import com.example.freshfarm3.entity.Buyer;
 import com.example.freshfarm3.entity.DeliveryAgent;
-import com.example.freshfarm3.entity.Farmer;
+import com.example.freshfarm3.entity.Shop;
 import com.example.freshfarm3.entity.User;
 import com.example.freshfarm3.enums.Role;
 import com.example.freshfarm3.repository.BuyerRepository;
 import com.example.freshfarm3.repository.DeliveryAgentRepository;
-import com.example.freshfarm3.repository.FarmerRepository;
+import com.example.freshfarm3.repository.ShopRepository;
 import com.example.freshfarm3.repository.UserRepository;
 import com.example.freshfarm3.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository          userRepository;
-    private final FarmerRepository        farmerRepository;
+    private final ShopRepository        shopRepository;
     private final BuyerRepository         buyerRepository;
     private final DeliveryAgentRepository deliveryAgentRepository;
     private final PasswordEncoder         passwordEncoder;
@@ -61,9 +61,9 @@ public class AuthService {
         return buildAuthResponse(token, saved);
     }
 
-    // ── FARMER REGISTER (maps farmer-specific fields) ───────────
+    // ── SHOP REGISTER (maps shop-specific fields) ───────────
     @Transactional
-    public AuthResponse registerFarmer(RegisterRequest req) {
+    public AuthResponse registerShop(RegisterRequest req) {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
@@ -73,29 +73,29 @@ public class AuthService {
                 .email(req.getEmail())
                 .password(passwordEncoder.encode(req.getPassword()))
                 .phone(req.getPhone())
-                .role(Role.FARMER)
+                .role(Role.SHOP)
                 .build();
         User saved = userRepository.save(user);
 
-        Farmer farmer = new Farmer();
-        farmer.setUser(saved);
-        farmer.setFarmName(req.getFarmName());
-        farmer.setVillage(req.getVillage());
-        farmer.setDistrict(req.getDistrict());
-        farmer.setState(req.getState());
-        farmer.setPincode(req.getPincode());
-        farmer.setAadhaarNumber(req.getAadhaarNumber());
-        farmer.setBankAccountNumber(req.getBankAccountNumber());
-        farmer.setIfscCode(req.getIfscCode());
-        farmer.setBio(req.getBio());
-        farmerRepository.save(farmer);
+        Shop shop = new Shop();
+        shop.setUser(saved);
+        shop.setShopName(req.getShopName());
+        shop.setVillage(req.getVillage());
+        shop.setDistrict(req.getDistrict());
+        shop.setState(req.getState());
+        shop.setPincode(req.getPincode());
+        shop.setAadhaarNumber(req.getAadhaarNumber());
+        shop.setBankAccountNumber(req.getBankAccountNumber());
+        shop.setIfscCode(req.getIfscCode());
+        shop.setBio(req.getBio());
+        shopRepository.save(shop);
 
         String token = jwtUtil.generateToken(saved.getEmail(), saved.getRole().name());
-        log.info("Farmer registered: {}", saved.getEmail());
+        log.info("Shop registered: {}", saved.getEmail());
         return buildAuthResponse(token, saved);
     }
 
-    // ── BUYER / FARMER / ADMIN LOGIN ─────────────────────────────
+    // ── BUYER / SHOP / ADMIN LOGIN ─────────────────────────────
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest req) {
         User user = userRepository.findByEmail(req.getEmail())
@@ -175,7 +175,7 @@ public class AuthService {
     // Step 2 (verification itself) happens directly via OtpService.verifyOtp,
     // called from AuthController — no extra business rule needed there.
 
-    // Guard used by registerBuyer/registerFarmer/registerAgent: registration
+    // Guard used by registerBuyer/registerShop/registerAgent: registration
     // is only allowed once the OTP flow above has been completed for either
     // the email or the phone number given at registration.
     //

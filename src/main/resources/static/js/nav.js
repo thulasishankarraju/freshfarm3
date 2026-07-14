@@ -31,14 +31,14 @@ function renderNav() {
       <a href="${root}cart.html">Cart</a>
       <a href="${root}orders.html">My Orders</a>
       <a href="${root}subscriptions.html">Subscriptions</a>`;
-  } else if (role === "FARMER") {
+  } else if (role === "SHOP") {
     roleLinks = `
-      <a href="${root}farmer/dashboard.html">Dashboard</a>
-      <a href="${root}farmer/products.html">My Products</a>`;
+      <a href="${root}shop/dashboard.html">Dashboard</a>
+      <a href="${root}shop/products.html">My Products</a>`;
   } else if (role === "ADMIN") {
     roleLinks = `
       <a href="${root}admin/dashboard.html">Dashboard</a>
-      <a href="${root}admin/farmers.html">Farmers</a>
+      <a href="${root}admin/shops.html">Shops</a>
       <a href="${root}admin/orders.html">Orders</a>`;
   } else if (role === "AGENT") {
     roleLinks = `<a href="${root}agent/dashboard.html">My Deliveries</a>`;
@@ -47,7 +47,7 @@ function renderNav() {
   mount.innerHTML = `
     <div class="brand-strip">
       <a href="${root}index.html">
-        <img src="${root}img/logo.png" alt="Fresh Farming — Empowering Farmers, Enriching Lives" class="brand-logo">
+        <img src="${root}img/logo.png" alt="Fresh Farming — Empowering Shops, Enriching Lives" class="brand-logo">
       </a>
     </div>
     <nav class="nav">
@@ -82,7 +82,7 @@ function renderNav() {
 /* ===========================================================
    Notification bell — polls unread count, opens a dropdown with
    the full feed on click, marks items read on click / "mark all".
-   Used by every logged-in page (buyer/farmer/admin/agent) so
+   Used by every logged-in page (buyer/shop/admin/agent) so
    things like "delivery agent assigned", "order out for delivery",
    and "order delivered" actually surface in the UI, not just email/SMS.
 =========================================================== */

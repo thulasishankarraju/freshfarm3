@@ -38,10 +38,10 @@ public class Review {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    // The farmer whose product is being reviewed
+    // The shop whose product is being reviewed
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "farmer_id", nullable = false)
-    private Farmer farmer;
+    @JoinColumn(name = "shop_id", nullable = false)
+    private Shop shop;
 
     // Rating: 1 to 5
     @Column(nullable = false)

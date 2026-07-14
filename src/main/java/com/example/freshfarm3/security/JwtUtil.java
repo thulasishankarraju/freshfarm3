@@ -33,7 +33,7 @@ public class JwtUtil {
     // ── Generate token with email + role ────────────────────────
     public String generateToken(String email, String role) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", role);  // e.g. "FARMER", "BUYER", "AGENT", "ADMIN"
+        claims.put("role", role);  // e.g. "SHOP", "BUYER", "AGENT", "ADMIN"
 
         return Jwts.builder()
                 .setClaims(claims)

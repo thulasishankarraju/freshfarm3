@@ -34,7 +34,7 @@ public class AuthResponse {
     /** Logged-in user's email */
     private String email;
 
-    /** Role: FARMER / BUYER / AGENT / ADMIN (controls which pages user sees) */
+    /** Role: SHOP / BUYER / AGENT / ADMIN (controls which pages user sees) */
     private String role;
 
     /** Token expiry in milliseconds (24 hours = 86400000) */
