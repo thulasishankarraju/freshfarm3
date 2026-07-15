@@ -15,8 +15,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // All reviews for a given product
     List<Review> findByProductIdOrderByReviewDateDesc(Long productId);
 
-    // All reviews for a given farmer
-    List<Review> findByFarmerIdOrderByReviewDateDesc(Long farmerId);
+    // All reviews for a given shop
+    List<Review> findByShopIdOrderByReviewDateDesc(Long shopId);
 
     // All reviews written by a specific buyer
     List<Review> findByBuyerIdOrderByReviewDateDesc(Long buyerId);
@@ -28,15 +28,15 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @Query("SELECT COALESCE(AVG(r.rating), 0.0) FROM Review r WHERE r.product.id = :productId")
     Double calculateAverageRatingByProduct(@Param("productId") Long productId);
 
-    // Average rating for a farmer
-    @Query("SELECT COALESCE(AVG(r.rating), 0.0) FROM Review r WHERE r.farmer.id = :farmerId")
-    Double calculateAverageRatingByFarmer(@Param("farmerId") Long farmerId);
+    // Average rating for a shop
+    @Query("SELECT COALESCE(AVG(r.rating), 0.0) FROM Review r WHERE r.shop.id = :shopId")
+    Double calculateAverageRatingByShop(@Param("shopId") Long shopId);
 
     // Count of reviews for a product
     long countByProductId(Long productId);
 
-    // Count of reviews for a farmer
-    long countByFarmerId(Long farmerId);
+    // Count of reviews for a shop
+    long countByShopId(Long shopId);
 
     // Rating distribution for a product (1–5 star counts)
     @Query("SELECT r.rating, COUNT(r) FROM Review r WHERE r.product.id = :productId GROUP BY r.rating ORDER BY r.rating DESC")

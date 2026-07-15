@@ -1,7 +1,7 @@
 package com.example.freshfarm3.repository;
 
 import com.example.freshfarm3.entity.Category;
-import com.example.freshfarm3.entity.Farmer;
+import com.example.freshfarm3.entity.Shop;
 import com.example.freshfarm3.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,14 +15,14 @@ import java.util.List;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    // ── Farmer's own products ─────────────────────────────────
-    List<Product> findByFarmer(Farmer farmer);
+    // ── Shop's own products ─────────────────────────────────
+    List<Product> findByShop(Shop shop);
 
-    List<Product> findByFarmerAndStatus(Farmer farmer, Product.ProductStatus status);
+    List<Product> findByShopAndStatus(Shop shop, Product.ProductStatus status);
 
-    long countByFarmer(Farmer farmer);
+    long countByShop(Shop shop);
 
-    long countByFarmerAndStatus(Farmer farmer, Product.ProductStatus status);
+    long countByShopAndStatus(Shop shop, Product.ProductStatus status);
 
     // ── Browse by category ────────────────────────────────────
     List<Product> findByCategoryAndStatus(Category category, Product.ProductStatus status);

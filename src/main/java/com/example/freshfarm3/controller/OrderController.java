@@ -2,7 +2,7 @@ package com.example.freshfarm3.controller;
 
 import com.example.freshfarm3.dto.request.CheckoutRequest;
 import com.example.freshfarm3.dto.response.CheckoutResponse;
-import com.example.freshfarm3.dto.response.FarmerOrderResponse;
+import com.example.freshfarm3.dto.response.ShopOrderResponse;
 import com.example.freshfarm3.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -67,14 +67,14 @@ public class OrderController {
         );
     }
 
-    // ── FARMER: View Orders for My Products ───────────────────────
-    // GET /api/orders/farmer/my-orders
-    @GetMapping("/farmer/my-orders")
-    @PreAuthorize("hasRole('FARMER')")
-    public ResponseEntity<List<FarmerOrderResponse>> getOrdersForFarmer(
+    // ── SHOP: View Orders for My Products ───────────────────────
+    // GET /api/orders/shop/my-orders
+    @GetMapping("/shop/my-orders")
+    @PreAuthorize("hasRole('SHOP')")
+    public ResponseEntity<List<ShopOrderResponse>> getOrdersForShop(
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(
-                orderService.getOrdersForFarmer(userDetails.getUsername())
+                orderService.getOrdersForShop(userDetails.getUsername())
         );
     }
 

@@ -24,7 +24,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * FileUploadService — Stores uploaded files (product photos, farmer documents,
+ * FileUploadService — Stores uploaded files (product photos, shop documents,
  * profile pictures, etc.) on local disk under {@code app.upload.dir} and
  * returns a public URL served from {@code app.upload.base-url} (wired up in
  * WebConfig + permitted in SecurityConfig).
@@ -48,7 +48,7 @@ public class  FileUploadService {
 
     private static final long MAX_FILE_SIZE = 10L * 1024 * 1024; // 10 MB (raised from 5MB)
 
-    // Expanded to cover the image formats farmers are likely to actually
+    // Expanded to cover the image formats shops are likely to actually
     // upload from phones/cameras — was previously JPEG/PNG/WEBP only, which
     // rejected GIF, BMP, TIFF, and HEIC/HEIF (common on iPhones) with a
     // "Unsupported file type" ValidationException.

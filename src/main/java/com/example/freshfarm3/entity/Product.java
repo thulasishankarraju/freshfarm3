@@ -34,7 +34,7 @@ public class Product extends BaseEntity {
     @Column(nullable = false, length = 10)
     private UnitType unitType;
 
-    // Only set (and only meaningful) when unitType == PIECE. The farmer
+    // Only set (and only meaningful) when unitType == PIECE. The shop
     // enters the average weight of a single piece so the system can
     // convert a piece-count order into a kg deduction from stock, since
     // stock for PIECE items is still tracked in kg, not piece-count.
@@ -54,13 +54,13 @@ public class Product extends BaseEntity {
 
     // ── Sprint 3: Inventory fields ──────────────────────────────
     // Stock is always kept in kg (for KG and PIECE products) or liters
-    // (for LITER products) — never in piece-count — per the farmer's
+    // (for LITER products) — never in piece-count — per the shop's
     // physical stock-taking (they weigh/measure what's on the shelf).
     @Column(nullable = false, precision = 10, scale = 3)
     private BigDecimal stockQuantity;
 
     @Column(nullable = false)
-    private Boolean isAvailable;   // false when stock = 0 or farmer delists
+    private Boolean isAvailable;   // false when stock = 0 or shop delists
     // ────────────────────────────────────────────────────────────
 
     @Enumerated(EnumType.STRING)
@@ -78,8 +78,8 @@ public class Product extends BaseEntity {
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "farmer_id", nullable = false)
-    private Farmer farmer;
+    @JoinColumn(name = "shop_id", nullable = false)
+    private Shop shop;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -28,7 +28,7 @@ public class ProductController {
     private final ProductService productService;
 
     // ═══════════════════════════════════════════════
-    //  PUBLIC ENDPOINTS — anonymous + buyer + farmer
+    //  PUBLIC ENDPOINTS — anonymous + buyer + shop
     // ═══════════════════════════════════════════════
 
     /** GET /api/products → all available products (paginated) */
@@ -58,45 +58,45 @@ public class ProductController {
     }
 
     // ═══════════════════════════════════════════════
-    //  FARMER-ONLY ENDPOINTS
+    //  SHOP-ONLY ENDPOINTS
     // ═══════════════════════════════════════════════
 
     /** POST /api/products — create product, optionally with images */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasRole('SHOP')")
     public ResponseEntity<ProductResponse> createProduct(
             @Valid @RequestPart("product") ProductRequest request,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) {
-        String farmerEmail = currentUserEmail();
-        ProductResponse response = productService.createProduct(request, farmerEmail, images);
+        String shopEmail = currentUserEmail();
+        ProductResponse response = productService.createProduct(request, shopEmail, images);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /** PUT /api/products/{id} — update product */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasRole('SHOP')")
     public ResponseEntity<ProductResponse> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody ProductRequest request) {
-        String farmerEmail = currentUserEmail();
-        return ResponseEntity.ok(productService.updateProduct(id, request, farmerEmail));
+        String shopEmail = currentUserEmail();
+        return ResponseEntity.ok(productService.updateProduct(id, request, shopEmail));
     }
 
     /** DELETE /api/products/{id} — delete product */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasRole('SHOP')")
     public ResponseEntity<Map<String, String>> deleteProduct(@PathVariable Long id) {
-        String farmerEmail = currentUserEmail();
-        productService.deleteProduct(id, farmerEmail);
+        String shopEmail = currentUserEmail();
+        productService.deleteProduct(id, shopEmail);
         return ResponseEntity.ok(Map.of("message", "Product deleted successfully"));
     }
 
-    /** GET /api/products/my-products — farmer's own listings */
+    /** GET /api/products/my-products — shop's own listings */
     @GetMapping("/my-products")
-    @PreAuthorize("hasRole('FARMER')")
+    @PreAuthorize("hasRole('SHOP')")
     public ResponseEntity<List<ProductResponse>> getMyProducts() {
-        String farmerEmail = currentUserEmail();
-        return ResponseEntity.ok(productService.getMyProducts(farmerEmail));
+        String shopEmail = currentUserEmail();
+        return ResponseEntity.ok(productService.getMyProducts(shopEmail));
     }
 
     // ── Private helper ────────────────────────────────────────

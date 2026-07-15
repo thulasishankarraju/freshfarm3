@@ -1,7 +1,7 @@
 package com.example.freshfarm3.exception;
 
 /**
- * Thrown when a requested entity (Farmer, Order, Product, etc.) cannot be found.
+ * Thrown when a requested entity (Shop, Order, Product, etc.) cannot be found.
  * Mapped to HTTP 404 by GlobalExceptionHandler.
  */
 public class ResourceNotFoundException extends RuntimeException {

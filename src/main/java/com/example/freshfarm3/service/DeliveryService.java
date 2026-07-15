@@ -205,7 +205,7 @@ public class DeliveryService {
         agent.setIsAvailable(true);
         deliveryAgentRepository.save(agent);
 
-        // Notify buyer and farmer
+        // Notify buyer and shop
         notifyDeliveryComplete(order, agent);
 
         log.info("Order delivered: {}", order.getOrderNumber());
@@ -336,10 +336,10 @@ public class DeliveryService {
                         "Thank you for shopping with FarmFresh! 🌿\nTeam FarmFresh"
         );
 
-        // Notify farmers in the order
+        // Notify shops in the order
         order.getItems().forEach(oi -> {
             saveNotification(
-                    oi.getProduct().getFarmer().getUser(),
+                    oi.getProduct().getShop().getUser(),
                     "Order Completed ✅",
                     "Order #" + order.getOrderNumber() + " has been delivered to the buyer."
             );

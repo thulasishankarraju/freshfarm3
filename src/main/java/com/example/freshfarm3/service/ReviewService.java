@@ -27,7 +27,7 @@ public class ReviewService {
     private final ProductRepository productRepository;
     private final BuyerRepository buyerRepository;
     private final OrderRepository orderRepository;
-    private final FarmerRepository farmerRepository;
+    private final ShopRepository shopRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
     //  CREATE REVIEW
@@ -75,7 +75,7 @@ public class ReviewService {
                 .product(product)
                 .buyer(buyer)
                 .order(order)
-                .farmer(product.getFarmer())
+                .shop(product.getShop())
                 .rating(request.getRating())
                 .reviewTitle(request.getReviewTitle())
                 .reviewComment(request.getReviewComment())
@@ -88,8 +88,8 @@ public class ReviewService {
         // 8. Recalculate product average rating
         updateProductRating(product.getId());
 
-        // 9. Recalculate farmer average rating
-        updateFarmerRating(product.getFarmer().getId());
+        // 9. Recalculate shop average rating
+        updateShopRating(product.getShop().getId());
 
         return mapToResponse(review);
     }
@@ -108,15 +108,15 @@ public class ReviewService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  GET REVIEWS BY FARMER
+    //  GET REVIEWS BY SHOP
     // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    public List<ReviewResponse> getReviewsByFarmer(Long farmerId) {
-        if (!farmerRepository.existsById(farmerId)) {
-            throw new ResourceNotFoundException("Farmer not found with id: " + farmerId);
+    public List<ReviewResponse> getReviewsByShop(Long shopId) {
+        if (!shopRepository.existsById(shopId)) {
+            throw new ResourceNotFoundException("Shop not found with id: " + shopId);
         }
-        return reviewRepository.findByFarmerIdOrderByReviewDateDesc(farmerId)
+        return reviewRepository.findByShopIdOrderByReviewDateDesc(shopId)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
@@ -174,16 +174,16 @@ public class ReviewService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  INTERNAL — Recalculate and persist farmer average rating
+    //  INTERNAL — Recalculate and persist shop average rating
     // ─────────────────────────────────────────────────────────────────────────
 
     @Transactional
-    public void updateFarmerRating(Long farmerId) {
-        Double avg = reviewRepository.calculateAverageRatingByFarmer(farmerId);
-        farmerRepository.findById(farmerId).ifPresent(f -> {
+    public void updateShopRating(Long shopId) {
+        Double avg = reviewRepository.calculateAverageRatingByShop(shopId);
+        shopRepository.findById(shopId).ifPresent(f -> {
             f.setAverageRating(avg != null ? avg : 0.0);
-            farmerRepository.save(f);
-            log.info("Updated farmer id={} averageRating={}", farmerId, avg);
+            shopRepository.save(f);
+            log.info("Updated shop id={} averageRating={}", shopId, avg);
         });
     }
 
@@ -198,8 +198,8 @@ public class ReviewService {
                 .productName(r.getProduct().getName())
                 .buyerId(r.getBuyer().getId())
                 .buyerName(r.getBuyer().getUser().getFullName())
-                .farmerId(r.getFarmer().getId())
-                .farmerName(r.getFarmer().getUser().getFullName())
+                .shopId(r.getShop().getId())
+                .shopName(r.getShop().getUser().getFullName())
                 .orderId(r.getOrder().getId())
                 .rating(r.getRating())
                 .reviewTitle(r.getReviewTitle())

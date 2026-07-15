@@ -12,10 +12,10 @@ package com.example.freshfarm3.enums;
 public enum Role {
 
     /**
-     * FARMER — Lists products, views orders, tracks earnings.
+     * SHOP — Lists products, views orders, tracks earnings.
      * Must be approved by ADMIN before listing products.
      */
-    FARMER,
+    SHOP,
 
     /**
      * BUYER — Browses products, adds to cart, places orders, pays.
@@ -28,7 +28,7 @@ public enum Role {
     AGENT,
 
     /**
-     * ADMIN — Full platform control. Approves farmers, manages all data.
+     * ADMIN — Full platform control. Approves shops, manages all data.
      */
     ADMIN
 }

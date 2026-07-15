@@ -22,8 +22,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByOrderStatus(OrderStatus status);
 
-    // Farmer: find all orders that include their products
-    List<Order> findByItems_Product_Farmer_User_Email(String farmerEmail);
+    // Shop: find all orders that include their products
+    List<Order> findByItems_Product_Shop_User_Email(String shopEmail);
 
     long countByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 

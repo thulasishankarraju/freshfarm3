@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="../img/logo-icon.png">
-<title>Farmer approvals — FarmFresh</title>
+<title>Shop approvals — FarmFresh</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
@@ -13,8 +13,8 @@
 <div id="nav"></div>
 
 <div class="container page">
-  <h2>Farmer approvals</h2>
-  <p class="muted">Only pending farmers are exposed by the backend (<code>GET /api/admin/farmers/pending</code>) — there's no endpoint to list already-approved or rejected farmers.</p>
+  <h2>Shop approvals</h2>
+  <p class="muted">Only pending shops are exposed by the backend (<code>GET /api/admin/shops/pending</code>) — there's no endpoint to list already-approved or rejected shops.</p>
   <div id="box"><p class="muted">Loading…</p></div>
 </div>
 
@@ -27,21 +27,21 @@ if (requireAuth(["ADMIN"])) load();
 async function load() {
   const box = document.getElementById("box");
   try {
-    const farmers = await api.pendingFarmers();
-    if (!farmers.length) { box.innerHTML = `<div class="empty"><h3>All caught up</h3><p>No farmers awaiting approval.</p></div>`; return; }
+    const shops = await api.pendingShops();
+    if (!shops.length) { box.innerHTML = `<div class="empty"><h3>All caught up</h3><p>No shops awaiting approval.</p></div>`; return; }
     box.innerHTML = `
       <table class="card">
-        <thead><tr><th>Farmer</th><th>Farm</th><th>Contact</th><th>Registered</th><th></th></tr></thead>
+        <thead><tr><th>Owner</th><th>Shop</th><th>Contact</th><th>Registered</th><th></th></tr></thead>
         <tbody>
-          ${farmers.map(f => `
+          ${shops.map(f => `
             <tr>
-              <td>${f.farmerName}</td>
-              <td>${f.farmName || ''}<br><span class="muted">${f.farmLocation || ''}</span></td>
+              <td>${f.ownerName}</td>
+              <td>${f.shopName || ''}<br><span class="muted">${f.shopLocation || ''}</span></td>
               <td>${f.email}<br><span class="muted">${f.phone || ''}</span></td>
               <td>${f.registeredDate || ''}</td>
               <td>
-                <button class="btn btn-primary btn-sm" onclick="approve(${f.farmerId})">Approve</button>
-                <button class="btn btn-danger btn-sm" onclick="reject(${f.farmerId})">Reject</button>
+                <button class="btn btn-primary btn-sm" onclick="approve(${f.shopId})">Approve</button>
+                <button class="btn btn-danger btn-sm" onclick="reject(${f.shopId})">Reject</button>
               </td>
             </tr>`).join("")}
         </tbody>
@@ -51,8 +51,8 @@ async function load() {
   }
 }
 
-async function approve(id) { try { await api.approveFarmer(id); toast("Farmer approved"); load(); } catch (e) { toast(e.message, "err"); } }
-async function reject(id) { try { await api.rejectFarmer(id); toast("Farmer rejected"); load(); } catch (e) { toast(e.message, "err"); } }
+async function approve(id) { try { await api.approveShop(id); toast("Shop approved"); load(); } catch (e) { toast(e.message, "err"); } }
+async function reject(id) { try { await api.rejectShop(id); toast("Shop rejected"); load(); } catch (e) { toast(e.message, "err"); } }
 </script>
 </body>
 </html>

@@ -44,7 +44,7 @@ function render(list) {
       <div class="body">
         <span class="badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${p.status || 'ACTIVE'}</span>
         <div class="name">${p.name}</div>
-        <div class="farm">${p.farmName || p.farmerName || ""} · ${p.categoryName || ""}</div>
+        <div class="farm">${p.shopName || p.ownerName || ""} · ${p.categoryName || ""}</div>
         <div class="price">${money(p.price)}</div>
       </div>
     </a>`).join("");

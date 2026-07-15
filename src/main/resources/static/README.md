@@ -34,7 +34,7 @@ These aren't frontend bugs — they're missing pieces in the backend itself:
 | Gap | Where it shows up | Workaround used here |
 |---|---|---|
 | ~~No `AddressController`~~ — **fixed**: added `AddressController` + `AddressService` + `AddressRequest`/`AddressResponse` to the backend (`POST/GET/PUT/DELETE /api/addresses`), matching the `BUYER`-only rule `SecurityConfig` already reserved for this path. | `checkout.html` | Checkout now lists saved addresses and lets you add new ones right from the UI — no manual SQL needed. **You must copy the 3 new backend files into your project and rebuild** (see §3.1 below) for this to work. |
-| No `CategoryController`, despite `SecurityConfig` permitting `GET /api/categories/**` | `shop.html`, `farmer/products.html` | Category dropdown on the shop page is built by reading `categoryId`/`categoryName` off whatever products come back. Farmers must type a numeric category ID directly when creating a product. |
+| No `CategoryController`, despite `SecurityConfig` permitting `GET /api/categories/**` | `shop.html`, `shop/products.html` | Category dropdown on the shop page is built by reading `categoryId`/`categoryName` off whatever products come back. Shops must type a numeric category ID directly when creating a product. |
 | No `CouponController`, despite `CouponRequest`/`CouponValidateRequest` DTOs existing | `checkout.html` | The coupon code field is accepted and sent with checkout (the backend DTO allows it) but there's no way to validate/preview a discount before placing the order. |
 | Razorpay `key-id` is never exposed by any endpoint (it's server-side only) | `checkout.html` | You must hardcode a matching **test** key in `checkout.html`'s `RAZORPAY_KEY_ID` constant, and set the same key in the backend's `application.properties` (`razorpay.key-id`). Cash-on-delivery works with zero setup. |
 | `@Valid` validation errors (missing/invalid fields) aren't given their own exception handler, so they currently surface as a generic 500 "Something went wrong" instead of field-level messages | Every form | Forms use HTML5 `required`/`pattern`/`minlength` to catch obvious mistakes client-side before they ever hit that backend behavior. |
@@ -62,7 +62,7 @@ patch alongside this frontend if you don't already have it applied — 4 new end
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/auth/register/send-otp` | Step 1 of registration — send a code to email or phone |
-| POST | `/api/auth/register/verify-otp` | Step 2 — must succeed before `/register/buyer`, `/register/farmer`, or `/api/auth/agent/register` will accept that email/phone |
+| POST | `/api/auth/register/verify-otp` | Step 2 — must succeed before `/register/buyer`, `/register/shop`, or `/api/auth/agent/register` will accept that email/phone |
 | POST | `/api/auth/forgot-password/send-otp` | Step 1 of reset — send a code to a registered email or phone |
 | POST | `/api/auth/forgot-password/reset` | Step 2 — verify the code and set the new password in one call |
 
@@ -78,8 +78,8 @@ form), but keep it in mind if you call these endpoints directly.
 
 ```
 index.html              landing page
-login.html              buyer/farmer/admin login + agent login tab + forgot-password link
-register.html           buyer/farmer/agent registration — each gated behind OTP verification first
+login.html              buyer/shop/admin login + agent login tab + forgot-password link
+register.html           buyer/shop/agent registration — each gated behind OTP verification first
 forgot-password.html    choose email/SMS → verify OTP → set new password
 shop.html               public product listing, search, category filter
 product-detail.html     single product, reviews, add-to-cart, subscribe
@@ -88,10 +88,10 @@ checkout.html           address + payment method + Razorpay/COD
 order-success.html      confirmation after checkout
 orders.html             buyer order history, cancel, review, track
 subscriptions.html      buyer subscription management
-farmer/dashboard.html   farmer product-count stats
-farmer/products.html    farmer product CRUD (multipart image upload)
-admin/dashboard.html    platform-wide stats + pending farmer approvals
-admin/farmers.html      dedicated farmer approval queue
+shop/dashboard.html   shop product-count stats
+shop/products.html    shop product CRUD (multipart image upload)
+admin/dashboard.html    platform-wide stats + pending shop approvals
+admin/shops.html      dedicated shop approval queue
 admin/orders.html       all orders + delivery assignment + refunds
 agent/dashboard.html    agent's assigned deliveries + status actions
 css/style.css           shared design tokens & components
@@ -105,6 +105,6 @@ js/nav.js               shared nav bar + toast notifications
 | Role | Entry point | Guarded pages |
 |---|---|---|
 | Buyer | `register.html` → Buyer tab | cart, checkout, orders, subscriptions |
-| Farmer | `register.html` → Farmer tab (needs admin approval for listings) | farmer/dashboard, farmer/products |
+| Shop | `register.html` → Shop tab (needs admin approval for listings) | shop/dashboard, shop/products |
 | Delivery Agent | `register.html` → Delivery Agent tab | agent/dashboard |
-| Admin | seeded automatically, log in via `login.html` | admin/dashboard, admin/farmers, admin/orders |
+| Admin | seeded automatically, log in via `login.html` | admin/dashboard, admin/shops, admin/orders |

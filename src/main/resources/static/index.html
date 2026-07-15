@@ -18,11 +18,11 @@
     <div class="container page">
         <section class="hero">
             <span class="eyebrow" style="color:#DCE6D9">Farm to doorstep</span>
-            <h1>EMPORING FARMERS ENRICHING LIVES.</h1>
-            <p>FarmFresh connects farmers directly to your kitchen — no middlemen, fair prices, and full traceability on every crate,.</p>
+            <h1>EMPORING SHOPS ENRICHING LIVES.</h1>
+            <p>FarmFresh connects shops directly to your kitchen — no middlemen, fair prices, and full traceability on every crate,.</p>
             <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
                 <a class="btn btn-accent" href="shop.html">Browse the shop</a>
-                <a class="btn btn-outline" style="border-color:#8AA187;color:#fff" href="register.html">Become a farmer partner</a>
+                <a class="btn btn-outline" style="border-color:#8AA187;color:#fff" href="register.html">Become a shop partner</a>
             </div>
         </section>
 
@@ -58,7 +58,7 @@
         <img src="${p.primaryImageUrl ? assetUrl(p.primaryImageUrl) : 'https://placehold.co/400x300?text=FarmFresh'}" alt="${p.name}">
         <div class="body">
           <div class="name">${p.name}</div>
-          <div class="farm">${p.farmName || p.farmerName || ""}</div>
+          <div class="farm">${p.shopName || p.ownerName || ""}</div>
           <div class="price">${money(p.price)}</div>
         </div>
       </a>`).join("");

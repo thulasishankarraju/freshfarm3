@@ -32,33 +32,33 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/farmers/pending
-     * Returns list of farmers awaiting approval.
+     * GET /api/admin/shops/pending
+     * Returns list of shops awaiting approval.
      */
-    @GetMapping("/farmers/pending")
-    public ResponseEntity<List<DashboardStatsResponse.FarmerSummary>> getPendingFarmers() {
-        log.info("GET /api/admin/farmers/pending");
-        return ResponseEntity.ok(adminService.getPendingFarmers());
+    @GetMapping("/shops/pending")
+    public ResponseEntity<List<DashboardStatsResponse.ShopSummary>> getPendingShops() {
+        log.info("GET /api/admin/shops/pending");
+        return ResponseEntity.ok(adminService.getPendingShops());
     }
 
     /**
-     * PUT /api/admin/farmers/{id}/approve
-     * Approves a pending farmer.
+     * PUT /api/admin/shops/{id}/approve
+     * Approves a pending shop.
      */
-    @PutMapping("/farmers/{id}/approve")
-    public ResponseEntity<DashboardStatsResponse.FarmerSummary> approveFarmer(@PathVariable Long id) {
-        log.info("PUT /api/admin/farmers/{}/approve", id);
-        return ResponseEntity.ok(adminService.approveFarmer(id));
+    @PutMapping("/shops/{id}/approve")
+    public ResponseEntity<DashboardStatsResponse.ShopSummary> approveShop(@PathVariable Long id) {
+        log.info("PUT /api/admin/shops/{}/approve", id);
+        return ResponseEntity.ok(adminService.approveShop(id));
     }
 
     /**
-     * PUT /api/admin/farmers/{id}/reject
-     * Rejects a pending farmer.
+     * PUT /api/admin/shops/{id}/reject
+     * Rejects a pending shop.
      */
-    @PutMapping("/farmers/{id}/reject")
-    public ResponseEntity<DashboardStatsResponse.FarmerSummary> rejectFarmer(@PathVariable Long id) {
-        log.info("PUT /api/admin/farmers/{}/reject", id);
-        return ResponseEntity.ok(adminService.rejectFarmer(id));
+    @PutMapping("/shops/{id}/reject")
+    public ResponseEntity<DashboardStatsResponse.ShopSummary> rejectShop(@PathVariable Long id) {
+        log.info("PUT /api/admin/shops/{}/reject", id);
+        return ResponseEntity.ok(adminService.rejectShop(id));
     }
 
     /**

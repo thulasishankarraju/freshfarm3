@@ -16,12 +16,12 @@ import java.util.Map;
  * NotificationController — in-app notification feed for every role.
  *
  * NOTE: Notification, NotificationService, and NotificationRepository already
- * existed (buyer/farmer/admin notifications were being saved to the DB for
+ * existed (buyer/shop/admin notifications were being saved to the DB for
  * order-placed, order-confirmed, delivery-assigned, and delivery-completed
  * events), but nothing ever exposed them over the API — so the buyer never
  * saw "delivery agent assigned" in-app, and the admin never saw "order
  * delivered" in-app either, even though the emails/SMS were going out. This
- * controller fills that gap. Open to any authenticated user (BUYER, FARMER,
+ * controller fills that gap. Open to any authenticated user (BUYER, SHOP,
  * ADMIN, AGENT) since notifications are scoped to the caller's own account.
  */
 @RestController

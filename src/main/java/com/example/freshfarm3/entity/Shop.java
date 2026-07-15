@@ -4,20 +4,20 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "farmers")
+@Table(name = "shops")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Farmer extends BaseEntity {
+public class Shop extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(name = "farm_name", nullable = false)
-    private String farmName;
+    @Column(name = "shop_name", nullable = false)
+    private String shopName;
 
     @Column(name = "village")
     private String village;
@@ -48,7 +48,7 @@ public class Farmer extends BaseEntity {
     private String bio;
 
     /**
-     * Average rating received across all products of this farmer.
+     * Average rating received across all products of this shop.
      */
     @Builder.Default
     @Column(name = "average_rating", nullable = false)

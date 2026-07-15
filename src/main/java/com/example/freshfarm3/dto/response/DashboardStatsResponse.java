@@ -16,9 +16,9 @@ public class DashboardStatsResponse {
     // ── User stats ───────────────────────────────────────────────────────────
     private long totalUsers;
     private long totalBuyers;
-    private long totalFarmers;
-    private long pendingFarmers;
-    private long approvedFarmers;
+    private long totalShops;
+    private long pendingShops;
+    private long approvedShops;
 
     // ── Product stats ────────────────────────────────────────────────────────
     private long totalProducts;
@@ -50,17 +50,17 @@ public class DashboardStatsResponse {
     private List<Map<String, Object>> revenueByMonth;   // [{month:"Jan", revenue:5000}, ...]
     private List<Map<String, Object>> ordersByMonth;    // [{month:"Jan", orders:120}, ...]
     private List<Map<String, Object>> topProducts;      // [{name, sales, revenue}, ...]
-    private List<Map<String, Object>> topFarmers;       // [{name, rating, totalSales}, ...]
+    private List<Map<String, Object>> topShops;       // [{name, rating, totalSales}, ...]
 
-    // ── Farmer approval shortlist ─────────────────────────────────────────────
+    // ── Shop approval shortlist ─────────────────────────────────────────────
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class FarmerSummary {
-        private Long   farmerId;
-        private String farmerName;
+    public static class ShopSummary {
+        private Long   shopId;
+        private String ownerName;
         private String email;
         private String phone;
-        private String farmName;
-        private String farmLocation;
+        private String shopName;
+        private String shopLocation;
         private String approvalStatus;  // PENDING / APPROVED / REJECTED
         private String registeredDate;
     }

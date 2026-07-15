@@ -28,7 +28,7 @@ public class NotificationService {
     // ── ORDER PLACED ──────────────────────────────────────────────
     /**
      * Called from OrderService after a successful order.
-     * Notifies buyer + every unique farmer involved.
+     * Notifies buyer + every unique shop involved.
      */
     @Transactional
     public void notifyOrderPlaced(Order order, List<OrderItem> items) {
@@ -50,7 +50,7 @@ public class NotificationService {
                 "FarmFresh — Order Confirmed 🌿",
                 "Hi " + buyer.getFullName() + ",\n\n" +
                         "Your order #" + orderNum + " for " + amount + " has been placed successfully!\n" +
-                        "We'll notify you as soon as the farmer confirms it.\n\n" +
+                        "We'll notify you as soon as the shop confirms it.\n\n" +
                         "Delivery to: " + order.getDeliveryAddress().getCity() + "\n\n" +
                         "Thank you for choosing FarmFresh 🌾\nTeam FarmFresh"
         );
@@ -64,24 +64,24 @@ public class NotificationService {
             );
         }
 
-        // ── FARMERS: Notify each unique farmer ──
+        // ── SHOPS: Notify each unique shop ──
         items.stream()
-                .map(oi -> oi.getProduct().getFarmer())
+                .map(oi -> oi.getProduct().getShop())
                 .distinct()
-                .forEach(farmer -> {
-                    User farmerUser = farmer.getUser();
+                .forEach(shop -> {
+                    User shopUser = shop.getUser();
 
                     saveNotification(
-                            farmerUser,
+                            shopUser,
                             "New Order Received! 🧑‍🌾",
                             "New order #" + orderNum + " from " + buyer.getFullName() +
                                     ". Please confirm in your dashboard."
                     );
 
                     emailService.send(
-                            farmerUser.getEmail(),
+                            shopUser.getEmail(),
                             "FarmFresh — New Order for You! 🧑‍🌾",
-                            "Hi " + farmerUser.getFullName() + ",\n\n" +
+                            "Hi " + shopUser.getFullName() + ",\n\n" +
                                     "You have a new order #" + orderNum + " from " + buyer.getFullName() + ".\n" +
                                     "Please log in and confirm it so we can dispatch it.\n\n" +
                                     "Team FarmFresh"
@@ -99,7 +99,7 @@ public class NotificationService {
         saveNotification(
                 buyer,
                 "Order Confirmed ✅",
-                "Great news! Your order #" + order.getOrderNumber() + " has been confirmed by the farmer."
+                "Great news! Your order #" + order.getOrderNumber() + " has been confirmed by the shop."
         );
 
         emailService.send(
@@ -113,7 +113,7 @@ public class NotificationService {
         if (buyer.getPhone() != null) {
             smsService.send(
                     "+91" + buyer.getPhone(),
-                    "FarmFresh: Order #" + order.getOrderNumber() + " confirmed by farmer!"
+                    "FarmFresh: Order #" + order.getOrderNumber() + " confirmed by shop!"
             );
         }
     }

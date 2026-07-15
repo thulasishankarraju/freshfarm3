@@ -21,7 +21,7 @@ import java.util.Map;
  *
  * Endpoints:
  *   POST /api/auth/register/buyer    → Register a new buyer
- *   POST /api/auth/register/farmer   → Register a new farmer
+ *   POST /api/auth/register/shop   → Register a new shop
  *   POST /api/auth/login             → Login with email + password
  *
  * All endpoints are PUBLIC (no JWT required) — configured in SecurityConfig.
@@ -75,19 +75,19 @@ public class AuthController {
     }
 
     // ─────────────────────────────────────
-    // FARMER REGISTRATION
+    // SHOP REGISTRATION
     // ─────────────────────────────────────
 
     /**
-     * Register a new Farmer.
+     * Register a new Shop.
      *
      * Request Body (JSON):
      * {
      *   "fullName": "Suresh Patel",
-     *   "email": "suresh@farm.com",
+     *   "email": "suresh@shop.com",
      *   "phone": "9123456780",
-     *   "password": "FarmPass123",
-     *   "farmName": "Green Fields Farm",
+     *   "password": "ShopPass123",
+     *   "shopName": "Green Fields Store",
      *   "village": "Vangoor",
      *   "district": "Kurnool",
      *   "state": "Andhra Pradesh",
@@ -97,12 +97,12 @@ public class AuthController {
      *   "ifscCode": "SBIN0012345"
      * }
      *
-     * Response (201 Created) — same as buyer but role = "FARMER"
+     * Response (201 Created) — same as buyer but role = "SHOP"
      */
-    @PostMapping("/register/farmer")
-    public ResponseEntity<?> registerFarmer(@Valid @RequestBody RegisterRequest request) {
+    @PostMapping("/register/shop")
+    public ResponseEntity<?> registerShop(@Valid @RequestBody RegisterRequest request) {
         try {
-            AuthResponse response = authService.registerFarmer(request);
+            AuthResponse response = authService.registerShop(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -137,7 +137,7 @@ public class AuthController {
     }
 
     // ─────────────────────────────────────
-    // REGISTRATION OTP  (send → verify → then call register/buyer or register/farmer)
+    // REGISTRATION OTP  (send → verify → then call register/buyer or register/shop)
     // ─────────────────────────────────────
 
     /**
@@ -161,8 +161,8 @@ public class AuthController {
 
     /**
      * Step 2 of registration: verify the OTP code before the account is created.
-     * Only after this succeeds will /register/buyer or /register/farmer accept
-     * that email/phone (see AuthService.registerBuyer/registerFarmer).
+     * Only after this succeeds will /register/buyer or /register/shop accept
+     * that email/phone (see AuthService.registerBuyer/registerShop).
      *
      * Request Body:
      * { "recipient": "ravi@example.com", "otpCode": "123456", "purpose": "REGISTRATION" }

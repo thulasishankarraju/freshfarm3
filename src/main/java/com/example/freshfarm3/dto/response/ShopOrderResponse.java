@@ -9,18 +9,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * FarmerOrderResponse — a farmer's view of an order they have items in.
+ * ShopOrderResponse — a shop's view of an order they have items in.
  *
  * Deliberately NOT the same DTO as CheckoutResponse (the buyer's view):
  * this one carries grossEarnings / platformFee / netEarnings, which is
- * money information for the farmer only. Only items belonging to the
- * requesting farmer are included — an order can span multiple farmers,
- * and each farmer should only see their own items and their own earnings,
- * not the buyer's full bill or other farmers' items.
+ * money information for the shop only. Only items belonging to the
+ * requesting shop are included — an order can span multiple shops,
+ * and each shop should only see their own items and their own earnings,
+ * not the buyer's full bill or other shops' items.
  */
 @Data
 @Builder
-public class FarmerOrderResponse {
+public class ShopOrderResponse {
 
     private Long          orderId;
     private String        orderNumber;
@@ -30,9 +30,9 @@ public class FarmerOrderResponse {
     private String        deliveryAddress;
     private List<OrderItemDto> items;
 
-    // Money the farmer actually receives for their items in this order.
-    private BigDecimal grossEarnings;   // sum of subtotal for the farmer's own items
-    private BigDecimal platformFee;     // flat ₹5 per order — farmer-side only, buyers never see this
+    // Money the shop actually receives for their items in this order.
+    private BigDecimal grossEarnings;   // sum of subtotal for the shop's own items
+    private BigDecimal platformFee;     // flat ₹5 per order — shop-side only, buyers never see this
     private BigDecimal netEarnings;     // grossEarnings - platformFee
 
     @Data

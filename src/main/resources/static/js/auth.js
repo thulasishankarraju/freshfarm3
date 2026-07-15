@@ -48,8 +48,8 @@ function requireAuth(allowedRoles = []) {
   return true;
 }
 
-/** Returns "" at site root, "../" when inside /farmer, /admin, /agent subfolders. */
+/** Returns "" at site root, "../" when inside /shop, /admin, /agent subfolders. */
 function rootPath() {
   const p = window.location.pathname;
-  return /\/(farmer|admin|agent)\//.test(p) ? "../" : "";
+  return /\/(shop|admin|agent)\//.test(p) ? "../" : "";
 }
