@@ -1,72 +1,69 @@
 package com.example.freshfarm3.exception;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException e) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 404);
-        body.put("error", "Not Found");
-        body.put("message", "The requested resource was not found.");
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    // Thrown by resolveUnitType(), resolveStatus(), validatePieceWeight(), etc.
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
+        log.warn("Bad request: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", e.getMessage()));
     }
 
-    // NEW — gives ResourceNotFoundException its own proper 404 response
-    // instead of falling through to the generic 500 catch-all below.
+    // Thrown when a category/product/shop lookup fails
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException e) {
-        log.warn("Resource not found: {}", e.getMessage());
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 404);
-        body.put("error", "Not Found");
-        body.put("message", e.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    public ResponseEntity<Map<String, String>> handleNotFound(ResourceNotFoundException e) {
+        log.warn("Not found: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", e.getMessage()));
     }
 
-    // NEW — most of this app's business-logic validation (stock checks,
-    // ownership checks, status-transition checks, "not found" checks, etc.)
-    // throws plain RuntimeException with a meaningful message. Without this
-    // handler those messages were being swallowed by the generic
-    // Exception.class catch-all below and replaced with an unhelpful
-    // "Something went wrong" — hiding the real reason from the user.
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException e) {
-        log.warn("Business error: {}", e.getMessage());
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 400);
-        body.put("error", "Bad Request");
-        body.put("message", e.getMessage() != null ? e.getMessage() : "Request could not be completed.");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    // Thrown when stock is insufficient, product unavailable, etc.
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException e) {
+        log.warn("Conflict: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", e.getMessage()));
     }
 
+    // Thrown when a shop tries to edit/delete a product they don't own
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDenied(AccessDeniedException e) {
+        log.warn("Access denied: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", e.getMessage()));
+    }
+
+    // Thrown by @Valid when a @RequestPart/@RequestBody DTO fails validation
+    // (e.g. missing name, price <= 0, etc.) — turns field errors into a
+    // readable map instead of Spring's default verbose response.
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException e) {
+        Map<String, String> errors = new HashMap<>();
+        e.getBindingResult().getFieldErrors()
+                .forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
+        log.warn("Validation failed: {}", errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+    }
+
+    // Catch-all safety net — only genuinely unexpected errors reach here now.
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleException(Exception e) {
-        log.error("Unhandled exception: ", e);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", 500);
-        body.put("error", "Internal Server Error");
-        body.put("message", "Something went wrong. Please try again later.");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    public ResponseEntity<Map<String, String>> handleGeneric(Exception e) {
+        log.error("Unhandled exception", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Something went wrong. Please try again."));
     }
 }

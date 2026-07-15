@@ -28,10 +28,11 @@ public class OtpService {
 
     // ── STEP 1: Generate and send OTP ──────────────────────────────────────
     @Transactional
-    public void sendOtp(String recipient, String channelStr, String purposeStr, String role) {
+    public void sendOtp(String recipientRaw, String channelStr, String purposeStr, String role) {
 
         OtpChannel channel = OtpChannel.valueOf(channelStr.toUpperCase());
         OtpPurpose purpose = OtpPurpose.valueOf(purposeStr.toUpperCase());
+        String recipient = normalizeRecipient(recipientRaw, channel);
 
         // Validate recipient format before doing anything
         if (channel == OtpChannel.EMAIL) {
@@ -45,10 +46,6 @@ public class OtpService {
                         "Phone must include country code e.g. +919876543210");
             }
         }
-
-        // For FORGOT_PASSWORD, verify the account actually exists first
-        // (prevents OTP spam on non-existent accounts)
-        // This check is done in AuthService before calling sendOtp()
 
         // Delete any previous OTPs for this recipient + purpose
         otpTokenRepository.deleteAllByRecipientAndPurpose(recipient, purpose);
@@ -75,14 +72,22 @@ public class OtpService {
             sendSms(recipient, code, purpose);
         }
 
-        log.info("OTP sent to {} via {} for purpose {}", recipient, channel, purpose);
+        log.info("OTP generated for recipient='{}' channel={} purpose={} code={}",
+                recipient, channel, purpose, code);
     }
 
     // ── STEP 2: Verify OTP ─────────────────────────────────────────────────
     // Returns true if valid, throws exception with reason if not
-    public void verifyOtp(String recipient, String code, String purposeStr) {
+    public void verifyOtp(String recipientRaw, String codeRaw, String purposeStr) {
 
         OtpPurpose purpose = OtpPurpose.valueOf(purposeStr.toUpperCase());
+        // We don't know the channel here, so normalize generically:
+        // trim always, lowercase only if it looks like an email.
+        String recipient = normalizeRecipientGeneric(recipientRaw);
+        String code = codeRaw == null ? null : codeRaw.trim();
+
+        log.info("Verifying OTP attempt — recipient='{}' purpose={} code='{}'",
+                recipient, purpose, code);
 
         OtpToken token = otpTokenRepository
                 .findTopByRecipientAndPurposeAndUsedFalseOrderByIdDesc(recipient, purpose)
@@ -104,13 +109,29 @@ public class OtpService {
     }
 
     // ── Check if OTP was verified (for registration flow guard) ───────────
-    public boolean isOtpVerified(String recipient, String purposeStr) {
+    public boolean isOtpVerified(String recipientRaw, String purposeStr) {
         OtpPurpose purpose = OtpPurpose.valueOf(purposeStr.toUpperCase());
+        String recipient = normalizeRecipientGeneric(recipientRaw);
         return otpTokenRepository
                 .existsByRecipientAndPurposeAndUsedTrue(recipient, purpose);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
+
+    // Used when we know the channel (sendOtp) — trims always, lowercases email only.
+    private String normalizeRecipient(String recipient, OtpChannel channel) {
+        if (recipient == null) return null;
+        String trimmed = recipient.trim();
+        return channel == OtpChannel.EMAIL ? trimmed.toLowerCase() : trimmed;
+    }
+
+    // Used when we don't know the channel (verifyOtp / isOtpVerified) —
+    // trims always, and lowercases if it looks like an email (contains '@').
+    private String normalizeRecipientGeneric(String recipient) {
+        if (recipient == null) return null;
+        String trimmed = recipient.trim();
+        return trimmed.contains("@") ? trimmed.toLowerCase() : trimmed;
+    }
 
     private void sendEmail(String toEmail, String code, OtpPurpose purpose) {
         SimpleMailMessage msg = new SimpleMailMessage();
