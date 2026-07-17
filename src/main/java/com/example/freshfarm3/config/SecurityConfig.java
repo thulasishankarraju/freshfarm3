@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/shop/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/agent/{agentId:[0-9]+}", "/api/reviews/agent/{agentId:[0-9]+}/summary").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
 
                         .requestMatchers(

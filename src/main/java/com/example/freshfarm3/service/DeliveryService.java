@@ -525,10 +525,12 @@ public class DeliveryService {
 
     private DeliveryResponse mapToResponse(Delivery d, boolean includeOtp) {
         DeliveryAgent agent = d.getDeliveryAgent();
+        Order order = d.getOrder();
+        BigDecimal earning = order.getDeliveryCharge().add(order.getTipAmount());
         return DeliveryResponse.builder()
                 .deliveryId(d.getId())
-                .orderId(d.getOrder().getId())
-                .orderNumber(d.getOrder().getOrderNumber())
+                .orderId(order.getId())
+                .orderNumber(order.getOrderNumber())
                 .agentId(agent.getId())
                 .agentName(agent.getUser().getFullName())
                 .agentPhone(agent.getPhone())
@@ -541,6 +543,59 @@ public class DeliveryService {
                 .estimatedDeliveryTime(d.getEstimatedDeliveryTime())
                 .otpVerified(d.getOtpVerified())
                 .otp(includeOtp ? d.getOtp() : null)
+                .agentEarning(earning)
                 .build();
+    }
+
+    // ── AGENT: EARNINGS SUMMARY ────────────────────────────────────
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Object> getEarningsSummary(String agentEmail) {
+        DeliveryAgent agent = getAgent(agentEmail);
+        List<Delivery> all = deliveryRepository.findByDeliveryAgent(agent);
+
+        List<Delivery> delivered = all.stream()
+                .filter(d -> d.getDeliveryStatus() == DeliveryStatus.DELIVERED)
+                .collect(Collectors.toList());
+
+        LocalDateTime startOfToday = LocalDateTime.now().toLocalDate().atStartOfDay();
+        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).toLocalDate().atStartOfDay();
+
+        BigDecimal totalEarnings = BigDecimal.ZERO;
+        BigDecimal todayEarnings = BigDecimal.ZERO;
+        BigDecimal monthEarnings = BigDecimal.ZERO;
+
+        for (Delivery d : delivered) {
+            Order order = d.getOrder();
+            BigDecimal earning = order.getDeliveryCharge().add(order.getTipAmount());
+            totalEarnings = totalEarnings.add(earning);
+
+            if (d.getDeliveredAt() != null) {
+                if (!d.getDeliveredAt().isBefore(startOfToday)) {
+                    todayEarnings = todayEarnings.add(earning);
+                }
+                if (!d.getDeliveredAt().isBefore(startOfMonth)) {
+                    monthEarnings = monthEarnings.add(earning);
+                }
+            }
+        }
+
+        long pendingCount = all.size() - delivered.size();
+        BigDecimal avgPerDelivery = delivered.isEmpty()
+                ? BigDecimal.ZERO
+                : totalEarnings.divide(BigDecimal.valueOf(delivered.size()), 2, java.math.RoundingMode.HALF_UP);
+
+        java.util.Map<String, Object> summary = new java.util.LinkedHashMap<>();
+        summary.put("agentId", agent.getId());
+        summary.put("totalDeliveries", all.size());
+        summary.put("completedDeliveries", delivered.size());
+        summary.put("pendingDeliveries", pendingCount);
+        summary.put("totalEarnings", totalEarnings);
+        summary.put("todayEarnings", todayEarnings);
+        summary.put("thisMonthEarnings", monthEarnings);
+        summary.put("averageEarningPerDelivery", avgPerDelivery);
+        summary.put("averageRating", agent.getAverageRating());
+        summary.put("reviewCount", agent.getReviewCount());
+        summary.put("isAvailable", agent.getIsAvailable());
+        return summary;
     }
 }

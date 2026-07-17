@@ -164,7 +164,11 @@ const api = {
   completeDelivery: (deliveryId, otp) => request(`/api/delivery/${deliveryId}/complete?otp=${encodeURIComponent(otp)}`, { method: "PUT" }),
   myDeliveries: () => request("/api/delivery/my-deliveries"),
   trackDelivery: (orderId) => request(`/api/delivery/track/${orderId}`),
+<<<<<<< HEAD
   agentEarnings: () => request("/api/auth/agent/earnings"),
+=======
+  agentEarnings: () => request("/api/delivery/earnings"),
+>>>>>>> 1e05720 (Save local changes)
 
   // ---- Notifications ----
   myNotifications: () => request("/api/notifications"),

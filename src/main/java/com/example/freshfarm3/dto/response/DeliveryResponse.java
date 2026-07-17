@@ -4,6 +4,7 @@ import com.example.freshfarm3.enums.DeliveryStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -27,5 +28,9 @@ public class DeliveryResponse {
 
     // OTP is only included in the agent's pickup response — not in public tracking
     private String         otp;
-}
 
+    // What the agent earns for this delivery: the order's deliveryCharge
+    // (goes to the agent in full) + any buyer tip. Realized once DELIVERED;
+    // shown earlier too so the agent can see what's pending.
+    private BigDecimal     agentEarning;
+}

@@ -66,6 +66,14 @@ public class DeliveryController {
         return ResponseEntity.ok(deliveryService.getMyDeliveries(userDetails.getUsername()));
     }
 
+    // GET /api/delivery/earnings  — AGENT
+    @GetMapping("/earnings")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<java.util.Map<String, Object>> earnings(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(deliveryService.getEarningsSummary(userDetails.getUsername()));
+    }
+
     // GET /api/delivery/track/{orderId}  — authenticated
     @GetMapping("/track/{orderId}")
     @PreAuthorize("isAuthenticated()")

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/png" href="../img/logo-icon.png">
-  <title>My deliveries — FarmFresh</title>
+  <title>Agent dashboard — FarmFresh</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/style.css">
@@ -13,8 +13,15 @@
 <div id="nav"></div>
 
 <div class="container page">
+<<<<<<< HEAD
   <h2>My deliveries</h2>
   <div id="earningsBox" class="grid grid-3" style="margin-bottom:24px;"><p class="muted">Loading earnings…</p></div>
+=======
+  <h2>Agent dashboard</h2>
+  <div id="earnings" class="grid grid-3" style="margin-bottom:30px;"><p class="muted">Loading…</p></div>
+
+  <div class="section-head"><h3>My deliveries</h3></div>
+>>>>>>> 1e05720 (Save local changes)
   <div id="box"><p class="muted">Loading…</p></div>
 </div>
 
@@ -22,6 +29,7 @@
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
+<<<<<<< HEAD
   if (requireAuth(["AGENT"])) { load(); loadEarnings(); }
 
   async function loadEarnings() {
@@ -37,6 +45,23 @@
         <div class="stat"><div class="num">${money(e.todayEarnings)}</div><div class="label">Earned today (${e.todayDeliveries} deliveries)</div></div>
         <div class="stat"><div class="num">${money(e.totalEarnings)}</div><div class="label">Total earnings (${e.totalDeliveries} deliveries)</div></div>
         <div class="stat"><div class="num">${money(e.totalBonus)}</div><div class="label">Total bonuses — ${bonusNote}</div></div>
+=======
+  if (requireAuth(["AGENT"])) { loadEarnings(); load(); }
+
+  async function loadEarnings() {
+    const box = document.getElementById("earnings");
+    try {
+      // GET /api/delivery/earnings — totalEarnings/todayEarnings/thisMonthEarnings,
+      // completed/pending delivery counts, averageRating, reviewCount
+      const e = await api.agentEarnings();
+      box.innerHTML = `
+        <div class="stat"><div class="num">${money(e.totalEarnings)}</div><div class="label">Total earnings</div></div>
+        <div class="stat"><div class="num">${money(e.todayEarnings)}</div><div class="label">Earned today</div></div>
+        <div class="stat"><div class="num">${money(e.thisMonthEarnings)}</div><div class="label">Earned this month</div></div>
+        <div class="stat"><div class="num">${e.completedDeliveries ?? 0}</div><div class="label">Completed deliveries</div></div>
+        <div class="stat"><div class="num">${e.pendingDeliveries ?? 0}</div><div class="label">Pending deliveries</div></div>
+        <div class="stat"><div class="num">${e.averageRating ? e.averageRating.toFixed(1) + ' ★' : '—'}</div><div class="label">Rating (${e.reviewCount ?? 0} reviews)</div></div>
+>>>>>>> 1e05720 (Save local changes)
       `;
     } catch (e) {
       box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
@@ -53,6 +78,7 @@
       <div class="card" style="margin-bottom:14px;">
         <div class="flex-between">
           <div><strong>${d.orderNumber}</strong> <span class="badge badge-active">${d.deliveryStatus}</span></div>
+          <strong>${money(d.agentEarning)}</strong>
         </div>
         <p class="muted" style="margin-top:6px;">Assigned ${d.assignedAt ? new Date(d.assignedAt).toLocaleString() : ''}</p>
         ${renderActions(d)}
