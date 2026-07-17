@@ -46,10 +46,6 @@ public class DeliveryService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    // Flat fee an agent earns for each delivery completed, on top of any
-    // buyer tip on that order.
-    private static final BigDecimal AGENT_BASE_DELIVERY_FEE = BigDecimal.valueOf(30);
-
     // Motivation bonus: every 5th delivery completed in a single calendar
     // day earns the agent an extra ₹9.
     private static final int        AGENT_BONUS_EVERY_N_DELIVERIES = 5;
@@ -256,7 +252,12 @@ public class DeliveryService {
     // ── AGENT EARNINGS: record delivery fee + daily bonus ───────────
     private void recordAgentEarningAndBonus(DeliveryAgent agent, Delivery delivery, Order order) {
         BigDecimal tip = order.getTipAmount() != null ? order.getTipAmount() : BigDecimal.ZERO;
-        BigDecimal earningAmount = AGENT_BASE_DELIVERY_FEE.add(tip);
+        // The agent earns exactly what the buyer paid for delivery
+        // (DeliveryChargeService — ₹10/km, see OrderService) plus any tip.
+        // This must match mapToResponse()'s per-delivery `agentEarning` so
+        // the earnings dashboard total and the per-order card never disagree.
+        BigDecimal deliveryCharge = order.getDeliveryCharge() != null ? order.getDeliveryCharge() : BigDecimal.ZERO;
+        BigDecimal earningAmount = deliveryCharge.add(tip);
 
         agentEarningRepository.save(AgentEarning.builder()
                 .agent(agent)
@@ -341,6 +342,13 @@ public class DeliveryService {
                 .filter(e -> e.getType() == AgentEarningType.DELIVERY_FEE)
                 .count();
 
+        // Absorbed from the earlier duplicate /api/delivery/earnings
+        // endpoint: how many deliveries this agent currently has that
+        // aren't finished yet, plus their buyer-rating stats.
+        long pendingDeliveries = deliveryRepository.findByDeliveryAgent(agent).stream()
+                .filter(d -> d.getDeliveryStatus() != DeliveryStatus.DELIVERED)
+                .count();
+
         int untilNextBonus = (int) (AGENT_BONUS_EVERY_N_DELIVERIES -
                 (todayDeliveries % AGENT_BONUS_EVERY_N_DELIVERIES));
         if (untilNextBonus == AGENT_BONUS_EVERY_N_DELIVERIES) {
@@ -366,6 +374,10 @@ public class DeliveryService {
                 .totalEarnings(grandTotal)
                 .totalBonus(totalBonus)
                 .deliveriesUntilNextBonus(untilNextBonus)
+                .pendingDeliveries(pendingDeliveries)
+                .averageRating(agent.getAverageRating())
+                .reviewCount(agent.getReviewCount())
+                .isAvailable(agent.getIsAvailable())
                 .recent(recent)
                 .build();
     }
@@ -547,55 +559,10 @@ public class DeliveryService {
                 .build();
     }
 
-    // ── AGENT: EARNINGS SUMMARY ────────────────────────────────────
-    @Transactional(readOnly = true)
-    public java.util.Map<String, Object> getEarningsSummary(String agentEmail) {
-        DeliveryAgent agent = getAgent(agentEmail);
-        List<Delivery> all = deliveryRepository.findByDeliveryAgent(agent);
-
-        List<Delivery> delivered = all.stream()
-                .filter(d -> d.getDeliveryStatus() == DeliveryStatus.DELIVERED)
-                .collect(Collectors.toList());
-
-        LocalDateTime startOfToday = LocalDateTime.now().toLocalDate().atStartOfDay();
-        LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).toLocalDate().atStartOfDay();
-
-        BigDecimal totalEarnings = BigDecimal.ZERO;
-        BigDecimal todayEarnings = BigDecimal.ZERO;
-        BigDecimal monthEarnings = BigDecimal.ZERO;
-
-        for (Delivery d : delivered) {
-            Order order = d.getOrder();
-            BigDecimal earning = order.getDeliveryCharge().add(order.getTipAmount());
-            totalEarnings = totalEarnings.add(earning);
-
-            if (d.getDeliveredAt() != null) {
-                if (!d.getDeliveredAt().isBefore(startOfToday)) {
-                    todayEarnings = todayEarnings.add(earning);
-                }
-                if (!d.getDeliveredAt().isBefore(startOfMonth)) {
-                    monthEarnings = monthEarnings.add(earning);
-                }
-            }
-        }
-
-        long pendingCount = all.size() - delivered.size();
-        BigDecimal avgPerDelivery = delivered.isEmpty()
-                ? BigDecimal.ZERO
-                : totalEarnings.divide(BigDecimal.valueOf(delivered.size()), 2, java.math.RoundingMode.HALF_UP);
-
-        java.util.Map<String, Object> summary = new java.util.LinkedHashMap<>();
-        summary.put("agentId", agent.getId());
-        summary.put("totalDeliveries", all.size());
-        summary.put("completedDeliveries", delivered.size());
-        summary.put("pendingDeliveries", pendingCount);
-        summary.put("totalEarnings", totalEarnings);
-        summary.put("todayEarnings", todayEarnings);
-        summary.put("thisMonthEarnings", monthEarnings);
-        summary.put("averageEarningPerDelivery", avgPerDelivery);
-        summary.put("averageRating", agent.getAverageRating());
-        summary.put("reviewCount", agent.getReviewCount());
-        summary.put("isAvailable", agent.getIsAvailable());
-        return summary;
-    }
+    // NOTE: an earlier, separate "getEarningsSummary" (Map-based) method
+    // used to live here, backing a duplicate /api/delivery/earnings
+    // endpoint. It's been removed — getAgentEarningsSummary() above is now
+    // the single source of truth for an agent's earnings (it includes the
+    // ₹9-per-5-deliveries bonus, plus the pending-deliveries/rating fields
+    // that method used to provide).
 }

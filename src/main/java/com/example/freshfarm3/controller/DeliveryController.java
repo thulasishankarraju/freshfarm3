@@ -66,13 +66,12 @@ public class DeliveryController {
         return ResponseEntity.ok(deliveryService.getMyDeliveries(userDetails.getUsername()));
     }
 
-    // GET /api/delivery/earnings  — AGENT
-    @GetMapping("/earnings")
-    @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<java.util.Map<String, Object>> earnings(
-            @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(deliveryService.getEarningsSummary(userDetails.getUsername()));
-    }
+    // NOTE: agent earnings live at GET /api/auth/agent/earnings (see
+    // AgentController) — that's the canonical endpoint, backed by
+    // DeliveryService.getAgentEarningsSummary(), and includes the
+    // ₹9-per-5-deliveries daily bonus. An earlier duplicate endpoint used
+    // to live here; it's been removed to avoid two different sources of
+    // truth for the same numbers.
 
     // GET /api/delivery/track/{orderId}  — authenticated
     @GetMapping("/track/{orderId}")

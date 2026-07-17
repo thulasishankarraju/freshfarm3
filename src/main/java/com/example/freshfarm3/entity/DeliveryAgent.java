@@ -37,14 +37,11 @@ public class DeliveryAgent extends BaseEntity {
     @Column(precision = 10, scale = 7)
     private BigDecimal currentLongitude;
 
-<<<<<<< HEAD
     // ── Reviews: aggregate rating fields (buyers rate the agent after
-    // delivery, 1–5 stars) ─────────────────────────────────────────
-=======
-    // Denormalized rating stats, recalculated by AgentReviewService whenever
-    // a buyer rates this agent. Kept here (instead of aggregating on every
-    // read) so the agent's rating can be shown cheaply on their dashboard.
->>>>>>> 1e05720 (Save local changes)
+    // delivery, 1–5 stars). Denormalized here (instead of aggregating on
+    // every read) so the rating can be shown cheaply on the agent's
+    // dashboard — recalculated by AgentReviewService whenever a buyer
+    // rates this agent. ─────────────────────────────────────────
     @Column
     @Builder.Default
     private Double averageRating = 0.0;

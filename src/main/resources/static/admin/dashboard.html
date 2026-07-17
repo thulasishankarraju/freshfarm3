@@ -19,6 +19,17 @@
   <div class="section-head" style="margin-top:34px;"><h3>Pending shop approvals</h3></div>
   <div id="pendingBox"><p class="muted">Loading…</p></div>
 
+  <div class="section-head" style="margin-top:34px;"><h3>Categories</h3></div>
+  <p class="muted" style="margin-top:-8px;">Shops can only add a product once it has a category to belong to — add categories here.</p>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="field-row">
+      <div><label>Name</label><input id="catName" placeholder="e.g. Vegetables"></div>
+      <div><label>Description (optional)</label><input id="catDescription"></div>
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="addCategory()">Add category</button>
+  </div>
+  <div id="categoriesBox"><p class="muted">Loading…</p></div>
+
   <div class="section-head" style="margin-top:34px;"><h3>Products awaiting a price</h3></div>
   <p class="muted" style="margin-top:-8px;">Shops add products but never set a price — fix each one here before it can appear in the store.</p>
   <div id="pendingPriceBox"><p class="muted">Loading…</p></div>
@@ -40,7 +51,7 @@
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
-  if (requireAuth(["ADMIN"])) { loadStats(); loadPending(); loadPendingPrice(); loadPayouts(); }
+  if (requireAuth(["ADMIN"])) { loadStats(); loadPending(); loadCategories(); loadPendingPrice(); loadPayouts(); }
 
   async function loadStats() {
     const box = document.getElementById("stats");
@@ -85,6 +96,42 @@
 
   async function approve(id) { try { await api.approveShop(id); toast("Shop approved"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
   async function reject(id) { try { await api.rejectShop(id); toast("Shop rejected"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+
+  async function loadCategories() {
+    const box = document.getElementById("categoriesBox");
+    try {
+      const categories = await api.listCategories();
+      if (!categories.length) { box.innerHTML = `<p class="muted">No categories yet — add one above.</p>`; return; }
+      box.innerHTML = categories.map(c => `
+      <div class="card flex-between" style="margin-bottom:8px;">
+        <div><strong>${c.name}</strong><div class="muted">${c.description || ''}</div></div>
+        <button class="btn btn-danger btn-sm" onclick="deleteCategory(${c.id})">Delete</button>
+      </div>`).join("");
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
+  }
+
+  async function addCategory() {
+    const name = document.getElementById("catName").value.trim();
+    const description = document.getElementById("catDescription").value.trim();
+    if (!name) { toast("Enter a category name", "err"); return; }
+    try {
+      await api.adminAddCategory({ name, description });
+      toast("Category added");
+      document.getElementById("catName").value = "";
+      document.getElementById("catDescription").value = "";
+      loadCategories();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  async function deleteCategory(id) {
+    try {
+      await api.adminDeleteCategory(id);
+      toast("Category deleted");
+      loadCategories();
+    } catch (e) { toast(e.message, "err"); }
+  }
 
   async function loadPendingPrice() {
     const box = document.getElementById("pendingPriceBox");

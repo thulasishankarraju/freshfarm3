@@ -20,6 +20,14 @@ public class AgentEarningsResponse {
     private BigDecimal totalBonus;
     private int deliveriesUntilNextBonus; // how many more deliveries today until the next ₹9 bonus
 
+    // Absorbed from an earlier duplicate /api/delivery/earnings endpoint —
+    // kept here so nothing is lost now that there's a single canonical
+    // earnings response.
+    private long pendingDeliveries;    // assigned/picked-up/out-for-delivery, not yet completed
+    private Double averageRating;      // agent's buyer rating (see AgentReviewService)
+    private Integer reviewCount;
+    private Boolean isAvailable;
+
     private List<EarningItem> recent;
 
     @Data

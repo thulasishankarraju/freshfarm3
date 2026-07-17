@@ -46,16 +46,6 @@
   <select id="c_categoryId" required>
     <option value="">Loading categories…</option>
   </select>
-  <label>Unit type</label>
-  <select id="c_unitType" required onchange="togglePieceWeight()">
-    <option value="KG">KG (priced/sold per kilogram)</option>
-    <option value="PIECE">Piece (priced/sold per item)</option>
-    <option value="LITER">Liter (priced/sold per liter)</option>
-  </select>
-  <div id="c_pieceWeightRow" style="display:none;">
-    <label>Average piece weight (grams)</label>
-    <input type="number" step="0.01" id="c_avgPieceWeightGrams" placeholder="e.g. 150">
-  </div>
   <label>Product images</label>
   <input type="file" id="c_images" multiple accept="image/*">
   <div style="display:flex;gap:10px;margin-top:16px;">
@@ -139,16 +129,11 @@
         <div class="body">
           <span class="badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${p.status}</span>
           <div class="name">${p.name}</div>
-<<<<<<< HEAD
+          <div class="muted" style="margin-top:2px;">${p.categoryName || ''}</div>
           <div class="muted">${p.quantity} ${p.unitType ? p.unitType.toLowerCase() : ''} in stock</div>
           ${p.priceFixed
               ? `<div class="price">${money(p.price)}</div>`
               : `<div class="badge badge-inactive" title="An admin needs to set this product's price before it appears in the store">Price pending admin approval</div>`}
-=======
-          <div class="muted" style="margin-top:2px;">${p.categoryName || ''}</div>
-          <div class="muted">${p.quantity} in stock</div>
-          <div class="price">${money(p.price)}</div>
->>>>>>> 1e05720 (Save local changes)
           <div style="display:flex;gap:8px;margin-top:8px;">
             <button class="btn btn-outline btn-sm" onclick='openEdit(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Edit</button>
             <button class="btn btn-danger btn-sm" onclick="del(${p.id})">Delete</button>
@@ -172,16 +157,16 @@
 
   function openCreate() {
     document.getElementById("createModal").style.display = "block";
-    togglePieceWeight();
-  }
-
-  function togglePieceWeight() {
-    const isPiece = document.getElementById("c_unitType").value === "PIECE";
-    document.getElementById("c_pieceWeightRow").style.display = isPiece ? "block" : "none";
+    toggleCreatePieceWeight();
   }
 
   document.getElementById("createBtn").addEventListener("click", async () => {
     const alertBox = document.getElementById("alertBox");
+    const categoryId = Number(document.getElementById("c_categoryId").value);
+    if (!categoryId) {
+      alertBox.innerHTML = `<div class="alert alert-err">Please select a category. If none are listed, ask an admin to add one first.</div>`;
+      return;
+    }
     try {
       const unitType = document.getElementById("c_unitType").value;
       const productRequest = {
@@ -190,17 +175,11 @@
         // No price here — shops don't set it. An admin fixes the price
         // after reviewing the product (see /api/admin/products/{id}/price).
         quantity: Number(document.getElementById("c_quantity").value),
-<<<<<<< HEAD
-        unitType: document.getElementById("c_unitType").value,
-        avgPieceWeightGrams: document.getElementById("c_unitType").value === "PIECE"
-                ? Number(document.getElementById("c_avgPieceWeightGrams").value) : undefined,
-=======
         unitType: unitType,
         avgPieceWeightGrams: unitType === "PIECE"
                 ? Number(document.getElementById("c_avgPieceWeightGrams").value)
-                : null,
->>>>>>> 1e05720 (Save local changes)
-        categoryId: Number(document.getElementById("c_categoryId").value)
+                : undefined,
+        categoryId: categoryId
       };
       const files = Array.from(document.getElementById("c_images").files || []);
       const fd = buildProductFormData(productRequest, files);
