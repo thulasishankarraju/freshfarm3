@@ -18,6 +18,18 @@ function money(n) {
   return "₹" + num.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/* Formats a cart/order line-item quantity, e.g.
+   formatQty(2, "kg")   -> "2 kg"
+   formatQty(1.5, "L")  -> "1.5 L"
+   formatQty(3)         -> "3"          (no unit passed) */
+function formatQty(qty, unit = "") {
+  const num = Number(qty || 0);
+  const display = Number.isInteger(num)
+      ? num.toString()
+      : num.toString().replace(/0+$/, "").replace(/\.$/, "");
+  return unit ? `${display} ${unit}` : display;
+}
+
 function renderNav() {
   const mount = document.getElementById("nav");
   if (!mount) return;

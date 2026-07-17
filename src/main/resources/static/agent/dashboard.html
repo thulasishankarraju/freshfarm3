@@ -44,7 +44,6 @@
         <div class="stat"><div class="num">${e.averageRating ? e.averageRating.toFixed(1) + ' ★' : '—'}</div><div class="label">Rating (${e.reviewCount ?? 0} reviews)</div></div>
         <div class="stat"><div class="num">${e.isAvailable ? 'Yes' : 'No'}</div><div class="label">Available for deliveries</div></div>
       `;
-      `;
     } catch (e) {
       box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
     }

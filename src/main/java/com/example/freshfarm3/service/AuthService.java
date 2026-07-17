@@ -39,6 +39,7 @@ public class AuthService {
     // ── BUYER REGISTER ──────────────────────────────────────────
     @Transactional
     public AuthResponse registerBuyer(RegisterRequest req) {
+        req.setEmail(normalizeEmail(req.getEmail()));
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
@@ -64,6 +65,7 @@ public class AuthService {
     // ── SHOP REGISTER (maps shop-specific fields) ───────────
     @Transactional
     public AuthResponse registerShop(RegisterRequest req) {
+        req.setEmail(normalizeEmail(req.getEmail()));
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
@@ -113,6 +115,7 @@ public class AuthService {
     // ── AGENT REGISTER ───────────────────────────────────────────
     @Transactional
     public AuthResponse registerAgent(AgentRegisterRequest req) {
+        req.setEmail(normalizeEmail(req.getEmail()));
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new RuntimeException("Email already registered: " + req.getEmail());
         }
@@ -222,6 +225,12 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
         log.info("Password reset for {}", req.getRecipient());
+    }
+
+    // Trims + lowercases an email so duplicate/OTP-verified checks can't
+    // disagree with OtpService's own normalization (which lowercases emails).
+    private String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase();
     }
 
     // "+919876543210" → "9876543210" (strips a leading +91, leaves email/other input untouched)
