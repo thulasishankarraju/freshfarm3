@@ -14,6 +14,7 @@
 
 <div class="container page">
   <h2>My deliveries</h2>
+  <div id="earningsBox" class="grid grid-3" style="margin-bottom:24px;"><p class="muted">Loading earnings…</p></div>
   <div id="box"><p class="muted">Loading…</p></div>
 </div>
 
@@ -21,7 +22,26 @@
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
-  if (requireAuth(["AGENT"])) load();
+  if (requireAuth(["AGENT"])) { load(); loadEarnings(); }
+
+  async function loadEarnings() {
+    const box = document.getElementById("earningsBox");
+    try {
+      // GET /api/auth/agent/earnings — today's/total earnings, bonus earned,
+      // and how many more deliveries until the next ₹9 bonus (every 5/day).
+      const e = await api.agentEarnings();
+      const bonusNote = e.deliveriesUntilNextBonus > 0
+              ? `${e.deliveriesUntilNextBonus} more today for a ₹9 bonus`
+              : `Bonus earned today! 🎉`;
+      box.innerHTML = `
+        <div class="stat"><div class="num">${money(e.todayEarnings)}</div><div class="label">Earned today (${e.todayDeliveries} deliveries)</div></div>
+        <div class="stat"><div class="num">${money(e.totalEarnings)}</div><div class="label">Total earnings (${e.totalDeliveries} deliveries)</div></div>
+        <div class="stat"><div class="num">${money(e.totalBonus)}</div><div class="label">Total bonuses — ${bonusNote}</div></div>
+      `;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
+  }
 
   async function load() {
     const box = document.getElementById("box");
@@ -52,6 +72,7 @@
                   await api.completeDelivery(deliveryId, otp);
                   toast("Delivery completed");
                   load();
+                  loadEarnings();
                 } catch (e) { toast(e.message, "err"); }
               }));
 

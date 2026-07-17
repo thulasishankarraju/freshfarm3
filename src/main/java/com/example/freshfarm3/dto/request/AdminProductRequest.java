@@ -5,11 +5,22 @@ import lombok.*;
 
 import java.math.BigDecimal;
 
+/**
+ * AdminProductRequest — Payload for POST /api/admin/products.
+ *
+ * Unlike ProductRequest (used by shops), price IS required here and is
+ * applied immediately (priceFixed = true) — the admin is both adding the
+ * product and fixing its price in one step. The admin also chooses which
+ * shop the product is listed under.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductRequest {
+public class AdminProductRequest {
+
+    @NotNull(message = "Shop ID is required")
+    private Long shopId;
 
     @NotBlank(message = "Product name is required")
     @Size(min = 2, max = 200, message = "Product name must be between 2 and 200 characters")
@@ -18,30 +29,24 @@ public class ProductRequest {
     @Size(max = 1000, message = "Description must not exceed 1000 characters")
     private String description;
 
-    // Shops do NOT set the price — it is intentionally optional here and
-    // ignored by ProductService.createProduct/updateProduct when the caller
-    // is a shop. Only an admin can fix a product's price (see
-    // AdminProductRequest / ProductPriceRequest and the /api/admin/products
-    // endpoints). If a shop submits a value here it is silently discarded.
+    @NotNull(message = "Price is required")
     @DecimalMin(value = "0.01", message = "Price must be greater than 0")
     @Digits(integer = 8, fraction = 2, message = "Invalid price format")
     private BigDecimal price;
 
     @NotNull(message = "Quantity is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Quantity cannot be negative")
-    private BigDecimal quantity;   // stock, always in kg (KG/PIECE products) or liters (LITER products)
+    private BigDecimal quantity;
 
     @NotBlank(message = "Unit type is required")
-    private String unitType;       // "KG", "PIECE", or "LITER"
+    private String unitType;
 
-    // Required only when unitType = PIECE — average weight of one piece,
-    // used to convert piece-count orders into a kg stock deduction.
     @DecimalMin(value = "0.01", message = "Average piece weight must be greater than 0")
     private BigDecimal avgPieceWeightGrams;
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;
 
-    // Optional — if not provided defaults to ACTIVE
     private String status;
 }
+

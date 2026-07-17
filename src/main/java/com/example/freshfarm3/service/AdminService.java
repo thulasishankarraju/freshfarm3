@@ -323,6 +323,8 @@ public class AdminService {
 
         // Let the buyer know their order was confirmed.
         notificationService.notifyOrderConfirmed(saved);
+        // Let each shop involved know they should pack the order.
+        notificationService.notifyShopsOrderConfirmed(saved, saved.getOrderItems());
 
         return mapToOrderResponse(saved);
     }

@@ -120,6 +120,7 @@ const api = {
   // ---- Shop ----
   shopDashboard: () => request("/api/shop/dashboard"),
   shopProducts: () => request("/api/shop/products"),
+  myPayouts: () => request("/api/shop/payouts"),
 
   // ---- Cart ----
   getCart: () => request("/api/cart"),
@@ -144,6 +145,7 @@ const api = {
   getOrder: (id) => request(`/api/orders/${id}`),
   cancelOrder: (id) => request(`/api/orders/${id}/cancel`, { method: "PUT" }),
   shopOrders: () => request("/api/orders/shop/my-orders"),
+  packOrder: (orderId) => request(`/api/orders/shop/${orderId}/pack`, { method: "PUT" }),
   allOrdersAdmin: () => request("/api/orders/admin/all"),
 
   // ---- Payments ----
@@ -162,6 +164,7 @@ const api = {
   completeDelivery: (deliveryId, otp) => request(`/api/delivery/${deliveryId}/complete?otp=${encodeURIComponent(otp)}`, { method: "PUT" }),
   myDeliveries: () => request("/api/delivery/my-deliveries"),
   trackDelivery: (orderId) => request(`/api/delivery/track/${orderId}`),
+  agentEarnings: () => request("/api/auth/agent/earnings"),
 
   // ---- Notifications ----
   myNotifications: () => request("/api/notifications"),
@@ -175,12 +178,6 @@ const api = {
   productReviewSummary: (productId) => request(`/api/reviews/product/${productId}/summary`, { auth: false }),
   shopReviews: (shopId) => request(`/api/reviews/shop/${shopId}`, { auth: false }),
   myReviews: () => request("/api/reviews/my-reviews"),
-
-  // ---- Delivery agent reviews (1-5 stars, after order is delivered) ----
-  createAgentReview: (payload) => request("/api/agent-reviews", { method: "POST", body: payload }),
-  agentReviews: (agentId) => request(`/api/agent-reviews/agent/${agentId}`, { auth: false }),
-  agentReviewSummary: (agentId) => request(`/api/agent-reviews/agent/${agentId}/summary`, { auth: false }),
-  myAgentReviews: () => request("/api/agent-reviews/my-reviews"),
 
   // ---- Subscriptions ----
   createSubscription: (payload) => request("/api/subscriptions", { method: "POST", body: payload }),
@@ -197,4 +194,18 @@ const api = {
   rejectShop: (id) => request(`/api/admin/shops/${id}/reject`, { method: "PUT" }),
   adminOrders: () => request("/api/admin/orders"),
   adminConfirmOrder: (id) => request(`/api/admin/orders/${id}/confirm`, { method: "PUT" }),
+
+  // ---- Admin: Product & price management ----
+  adminAllProducts: () => request("/api/admin/products"),
+  adminPendingPriceProducts: () => request("/api/admin/products/pending-price"),
+  // NOTE: multipart, same shape as buildProductFormData() but the "product"
+  // part is an AdminProductRequest (includes shopId + required price).
+  adminCreateProduct: (formData) => request("/api/admin/products", { method: "POST", body: formData, isForm: true }),
+  adminFixPrice: (productId, price) => request(`/api/admin/products/${productId}/price`, { method: "PUT", body: { price } }),
+
+  // ---- Admin: Shop payouts / settlements ----
+  adminAllPayouts: () => request("/api/admin/payouts"),
+  adminShopPayouts: (shopId) => request(`/api/admin/shops/${shopId}/payouts`),
+  adminCreatePayout: (shopId, payload) => request(`/api/admin/shops/${shopId}/payouts`, { method: "POST", body: payload }),
+  adminMarkPayoutPaid: (payoutId) => request(`/api/admin/payouts/${payoutId}/pay`, { method: "PUT" }),
 };

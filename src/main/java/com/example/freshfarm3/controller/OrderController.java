@@ -78,6 +78,19 @@ public class OrderController {
         );
     }
 
+    // ── SHOP: Mark Order As Packed ──────────────────────────────
+    // PUT /api/orders/shop/{orderId}/pack
+    // Only allowed once an admin has confirmed the order; notifies the buyer.
+    @PutMapping("/shop/{orderId}/pack")
+    @PreAuthorize("hasRole('SHOP')")
+    public ResponseEntity<ShopOrderResponse> packOrder(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable Long orderId) {
+        return ResponseEntity.ok(
+                orderService.packOrder(userDetails.getUsername(), orderId)
+        );
+    }
+
     // ── ADMIN: View All Orders ────────────────────────────────────
     // GET /api/orders/admin/all
     @GetMapping("/admin/all")

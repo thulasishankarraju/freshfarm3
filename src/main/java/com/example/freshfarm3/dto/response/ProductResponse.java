@@ -17,6 +17,7 @@ public class ProductResponse {
     private String name;
     private String description;
     private BigDecimal price;
+    private Boolean priceFixed;   // false = admin hasn't set a price yet; not purchasable
     private BigDecimal quantity;          // stock, in kg or liters
     private String unitType;              // "KG", "PIECE", "LITER"
     private BigDecimal avgPieceWeightGrams;

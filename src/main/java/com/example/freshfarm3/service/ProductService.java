@@ -1,5 +1,7 @@
 package com.example.freshfarm3.service;
 
+import com.example.freshfarm3.dto.request.AdminProductRequest;
+import com.example.freshfarm3.dto.request.ProductPriceRequest;
 import com.example.freshfarm3.dto.request.ProductRequest;
 import com.example.freshfarm3.dto.response.ProductResponse;
 import com.example.freshfarm3.entity.Category;
@@ -53,11 +55,14 @@ public class ProductService {
         Product product = Product.builder()
                 .name(req.getName())
                 .description(req.getDescription())
-                .price(req.getPrice())
+                // Shops never set the price — always created unpriced and
+                // unavailable until an admin fixes it via /api/admin/products.
+                .price(null)
+                .priceFixed(false)
                 .unitType(unitType)
                 .avgPieceWeightGrams(req.getAvgPieceWeightGrams())
                 .stockQuantity(quantity)
-                .isAvailable(quantity.compareTo(BigDecimal.ZERO) > 0)
+                .isAvailable(false)
                 .status(resolveStatus(req.getStatus()))
                 .isOrganic(false) // TODO: ProductRequest has no isOrganic field yet
                 .category(category)
@@ -92,7 +97,9 @@ public class ProductService {
 
         product.setName(req.getName());
         product.setDescription(req.getDescription());
-        product.setPrice(req.getPrice());
+        // Price is intentionally NOT updated here — only an admin can change
+        // a product's price (see fixPrice / PUT /api/admin/products/{id}/price).
+        // Any price value the shop submits in this request is ignored.
 
         if (req.getUnitType() != null) {
             UnitType unitType = resolveUnitType(req.getUnitType());
@@ -103,7 +110,9 @@ public class ProductService {
 
         BigDecimal quantity = req.getQuantity() != null ? req.getQuantity() : BigDecimal.ZERO;
         product.setStockQuantity(quantity);
-        product.setIsAvailable(quantity.compareTo(BigDecimal.ZERO) > 0);
+        // Only actually available to buyers once BOTH there's stock AND an
+        // admin has fixed the price.
+        product.setIsAvailable(quantity.compareTo(BigDecimal.ZERO) > 0 && Boolean.TRUE.equals(product.getPriceFixed()));
 
         if (req.getStatus() != null) {
             product.setStatus(resolveStatus(req.getStatus()));
@@ -138,21 +147,21 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAllAvailableProducts(Pageable pageable) {
-        return productRepository.findByStatus(Product.ProductStatus.ACTIVE, pageable)
+        return productRepository.findByStatusAndPriceFixedTrue(Product.ProductStatus.ACTIVE, pageable)
                 .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> searchProducts(String keyword, Pageable pageable) {
         return productRepository
-                .findByNameContainingIgnoreCaseAndStatus(keyword, Product.ProductStatus.ACTIVE, pageable)
+                .findByNameContainingIgnoreCaseAndStatusAndPriceFixedTrue(keyword, Product.ProductStatus.ACTIVE, pageable)
                 .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> filterByCategory(Long categoryId, Pageable pageable) {
         return productRepository
-                .findByCategory_IdAndStatus(categoryId, Product.ProductStatus.ACTIVE, pageable)
+                .findByCategory_IdAndStatusAndPriceFixedTrue(categoryId, Product.ProductStatus.ACTIVE, pageable)
                 .map(this::mapToResponse);
     }
 
@@ -161,6 +170,91 @@ public class ProductService {
         Shop shop = shopRepository.findByUser_Email(shopEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
         return productRepository.findByShop(shop).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ── ADMIN: CREATE PRODUCT (with price, immediately priced) ────
+    @Transactional
+    public ProductResponse createProductByAdmin(AdminProductRequest req, List<MultipartFile> images) {
+        Shop shop = shopRepository.findById(req.getShopId())
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found: " + req.getShopId()));
+
+        Category category = categoryRepository.findById(req.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+
+        UnitType unitType = resolveUnitType(req.getUnitType());
+        validatePieceWeight(unitType, req.getAvgPieceWeightGrams());
+
+        BigDecimal quantity = req.getQuantity() != null ? req.getQuantity() : BigDecimal.ZERO;
+
+        Product product = Product.builder()
+                .name(req.getName())
+                .description(req.getDescription())
+                .price(req.getPrice())
+                .priceFixed(true)
+                .unitType(unitType)
+                .avgPieceWeightGrams(req.getAvgPieceWeightGrams())
+                .stockQuantity(quantity)
+                .isAvailable(quantity.compareTo(BigDecimal.ZERO) > 0)
+                .status(resolveStatus(req.getStatus()))
+                .isOrganic(false)
+                .category(category)
+                .shop(shop)
+                .build();
+
+        if (images != null && !images.isEmpty()) {
+            for (int i = 0; i < images.size(); i++) {
+                MultipartFile file = images.get(i);
+                String url = fileUploadService.uploadFile(file);
+                ProductImage pi = ProductImage.builder()
+                        .imageUrl(url)
+                        .product(product)
+                        .displayOrder(i)
+                        .isPrimary(i == 0)
+                        .build();
+                product.getImages().add(pi);
+            }
+        }
+
+        Product saved = productRepository.save(product);
+        log.info("Product created by admin: {} for shop: {}", saved.getId(), shop.getId());
+        return mapToResponse(saved);
+    }
+
+    // ── ADMIN: FIX / UPDATE PRICE ──────────────────────────────────
+    @Transactional
+    public ProductResponse fixPrice(Long productId, ProductPriceRequest req) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
+
+        product.setPrice(req.getPrice());
+        product.setPriceFixed(true);
+        // Re-evaluate availability now that a price exists.
+        boolean inStock = product.getStockQuantity() != null
+                && product.getStockQuantity().compareTo(BigDecimal.ZERO) > 0;
+        product.setIsAvailable(inStock);
+        if (inStock && product.getStatus() == Product.ProductStatus.OUT_OF_STOCK) {
+            product.setStatus(Product.ProductStatus.ACTIVE);
+        }
+
+        Product saved = productRepository.save(product);
+        log.info("Price fixed for product {}: {}", productId, req.getPrice());
+        return mapToResponse(saved);
+    }
+
+    // ── ADMIN: PRODUCTS AWAITING A PRICE ───────────────────────────
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getPendingPriceProducts() {
+        return productRepository.findByPriceFixedFalseOrderByCreatedAtAsc().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // ── ADMIN: ALL PRODUCTS (priced + unpriced) ────────────────────
+    @Transactional(readOnly = true)
+    public List<ProductResponse> getAllProductsForAdmin() {
+        return productRepository.findAll().stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -260,6 +354,7 @@ public class ProductService {
                 .name(p.getName())
                 .description(p.getDescription())
                 .price(p.getPrice())
+                .priceFixed(p.getPriceFixed())
                 .quantity(p.getStockQuantity())
                 .unitType(p.getUnitType() != null ? p.getUnitType().name() : null)
                 .avgPieceWeightGrams(p.getAvgPieceWeightGrams())

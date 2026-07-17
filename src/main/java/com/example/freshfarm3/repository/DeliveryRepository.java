@@ -20,4 +20,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
             DeliveryAgent agent, DeliveryStatus status);
 
     List<Delivery> findByDeliveryStatus(DeliveryStatus status);
+
+    // ── Agent earnings / daily bonus ────────────────────────────
+    List<Delivery> findByDeliveryAgentAndDeliveryStatusAndDeliveredAtBetween(
+            DeliveryAgent agent, DeliveryStatus status,
+            java.time.LocalDateTime from, java.time.LocalDateTime to);
 }

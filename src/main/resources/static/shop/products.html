@@ -24,11 +24,23 @@
 <!-- Create modal (multipart — required by backend for POST /api/products) -->
 <div id="createModal" class="card" style="display:none;position:fixed;top:8%;left:50%;transform:translateX(-50%);width:92%;max-width:480px;z-index:200;max-height:84vh;overflow:auto;">
   <h3>New product</h3>
+  <p class="muted" style="margin-top:-4px;">Add the product's details and stock. An admin will review it and fix the selling price before it appears in the store.</p>
   <label>Name</label><input id="c_name" required>
   <label>Description</label><textarea id="c_description"></textarea>
   <div class="field-row">
-    <div><label>Price (₹)</label><input type="number" step="0.01" id="c_price" required></div>
-    <div><label>Quantity in stock</label><input type="number" id="c_quantity" required></div>
+    <div>
+      <label>Sold by</label>
+      <select id="c_unitType" required onchange="toggleCreatePieceWeight()">
+        <option value="KG">Kilogram (kg)</option>
+        <option value="LITER">Liter (L)</option>
+        <option value="PIECE">Piece</option>
+      </select>
+    </div>
+    <div><label>Quantity in stock</label><input type="number" step="0.01" id="c_quantity" required></div>
+  </div>
+  <div id="c_pieceWeightRow" style="display:none;">
+    <label>Average weight per piece (grams)</label>
+    <input type="number" step="0.01" id="c_avgPieceWeightGrams">
   </div>
   <label>Category</label>
   <select id="c_categoryId" required>
@@ -48,9 +60,21 @@
   <input type="hidden" id="e_id">
   <label>Name</label><input id="e_name" required>
   <label>Description</label><textarea id="e_description"></textarea>
+  <div id="e_priceInfo" class="muted" style="margin:6px 0;"></div>
   <div class="field-row">
-    <div><label>Price (₹)</label><input type="number" step="0.01" id="e_price" required></div>
-    <div><label>Quantity</label><input type="number" id="e_quantity" required></div>
+    <div>
+      <label>Sold by</label>
+      <select id="e_unitType" onchange="toggleEditPieceWeight()">
+        <option value="KG">Kilogram (kg)</option>
+        <option value="LITER">Liter (L)</option>
+        <option value="PIECE">Piece</option>
+      </select>
+    </div>
+    <div><label>Quantity</label><input type="number" step="0.01" id="e_quantity" required></div>
+  </div>
+  <div id="e_pieceWeightRow" style="display:none;">
+    <label>Average weight per piece (grams)</label>
+    <input type="number" step="0.01" id="e_avgPieceWeightGrams">
   </div>
   <label>Category</label>
   <select id="e_categoryId" required>
@@ -105,8 +129,10 @@
         <div class="body">
           <span class="badge ${p.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">${p.status}</span>
           <div class="name">${p.name}</div>
-          <div class="muted">${p.quantity} in stock</div>
-          <div class="price">${money(p.price)}</div>
+          <div class="muted">${p.quantity} ${p.unitType ? p.unitType.toLowerCase() : ''} in stock</div>
+          ${p.priceFixed
+              ? `<div class="price">${money(p.price)}</div>`
+              : `<div class="badge badge-inactive" title="An admin needs to set this product's price before it appears in the store">Price pending admin approval</div>`}
           <div style="display:flex;gap:8px;margin-top:8px;">
             <button class="btn btn-outline btn-sm" onclick='openEdit(${JSON.stringify(p).replace(/'/g, "&apos;")})'>Edit</button>
             <button class="btn btn-danger btn-sm" onclick="del(${p.id})">Delete</button>
@@ -116,6 +142,16 @@
     } catch (e) {
       box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
     }
+  }
+
+  function toggleCreatePieceWeight() {
+    const isPiece = document.getElementById("c_unitType").value === "PIECE";
+    document.getElementById("c_pieceWeightRow").style.display = isPiece ? "block" : "none";
+  }
+
+  function toggleEditPieceWeight() {
+    const isPiece = document.getElementById("e_unitType").value === "PIECE";
+    document.getElementById("e_pieceWeightRow").style.display = isPiece ? "block" : "none";
   }
 
   function openCreate() {
@@ -128,14 +164,18 @@
       const productRequest = {
         name: document.getElementById("c_name").value.trim(),
         description: document.getElementById("c_description").value.trim(),
-        price: Number(document.getElementById("c_price").value),
+        // No price here — shops don't set it. An admin fixes the price
+        // after reviewing the product (see /api/admin/products/{id}/price).
         quantity: Number(document.getElementById("c_quantity").value),
+        unitType: document.getElementById("c_unitType").value,
+        avgPieceWeightGrams: document.getElementById("c_unitType").value === "PIECE"
+                ? Number(document.getElementById("c_avgPieceWeightGrams").value) : undefined,
         categoryId: Number(document.getElementById("c_categoryId").value)
       };
       const files = Array.from(document.getElementById("c_images").files || []);
       const fd = buildProductFormData(productRequest, files);
       await api.createProduct(fd);
-      toast("Product created");
+      toast("Product submitted — awaiting admin price approval");
       document.getElementById("createModal").style.display = "none";
       load();
     } catch (e) {
@@ -147,8 +187,13 @@
     document.getElementById("e_id").value = p.id;
     document.getElementById("e_name").value = p.name;
     document.getElementById("e_description").value = p.description || "";
-    document.getElementById("e_price").value = p.price;
+    document.getElementById("e_priceInfo").textContent = p.priceFixed
+            ? `Current price: ${money(p.price)} (set by admin)`
+            : `Price not yet set by admin`;
     document.getElementById("e_quantity").value = p.quantity;
+    document.getElementById("e_unitType").value = p.unitType || "KG";
+    document.getElementById("e_avgPieceWeightGrams").value = p.avgPieceWeightGrams || "";
+    toggleEditPieceWeight();
     document.getElementById("e_categoryId").value = p.categoryId || "";
     document.getElementById("e_status").value = p.status || "ACTIVE";
     document.getElementById("editModal").style.display = "block";
@@ -160,8 +205,10 @@
       await api.updateProduct(id, {
         name: document.getElementById("e_name").value.trim(),
         description: document.getElementById("e_description").value.trim(),
-        price: Number(document.getElementById("e_price").value),
         quantity: Number(document.getElementById("e_quantity").value),
+        unitType: document.getElementById("e_unitType").value,
+        avgPieceWeightGrams: document.getElementById("e_unitType").value === "PIECE"
+                ? Number(document.getElementById("e_avgPieceWeightGrams").value) : undefined,
         categoryId: Number(document.getElementById("e_categoryId").value),
         status: document.getElementById("e_status").value
       });

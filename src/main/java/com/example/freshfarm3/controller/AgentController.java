@@ -2,10 +2,12 @@ package com.example.freshfarm3.controller;
 
 import com.example.freshfarm3.dto.request.AgentLoginRequest;
 import com.example.freshfarm3.dto.request.AgentRegisterRequest;
+import com.example.freshfarm3.dto.response.AgentEarningsResponse;
 import com.example.freshfarm3.dto.response.AuthResponse;
 import com.example.freshfarm3.entity.DeliveryAgent;
 import com.example.freshfarm3.repository.DeliveryAgentRepository;
 import com.example.freshfarm3.service.AuthService;
+import com.example.freshfarm3.service.DeliveryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,7 @@ public class AgentController {
 
     private final AuthService             authService;
     private final DeliveryAgentRepository deliveryAgentRepository;
+    private final DeliveryService         deliveryService;
 
     // POST /api/auth/agent/register
     @PostMapping("/register")
@@ -57,5 +60,15 @@ public class AgentController {
                 "vehicleType",   agent.getVehicleType(),
                 "isAvailable",   agent.getIsAvailable()
         ));
+    }
+
+    // GET /api/auth/agent/earnings — dashboard: today's earnings, total
+    // earnings, total bonus, and how many more deliveries until the next
+    // ₹9 bonus (awarded every 5 deliveries completed in a day).
+    @GetMapping("/earnings")
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<AgentEarningsResponse> getEarnings(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(deliveryService.getAgentEarningsSummary(userDetails.getUsername()));
     }
 }

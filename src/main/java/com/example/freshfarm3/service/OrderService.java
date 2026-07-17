@@ -34,6 +34,7 @@ public class OrderService {
     private final OrderNumberGenerator   orderNumberGenerator;
     private final DeliveryChargeService  deliveryChargeService;
     private final ShopRepository       shopRepository;
+    private final NotificationService  notificationService;
 
     // Flat ₹5 platform fee charged to the buyer on every order (shown to the buyer).
     private static final BigDecimal BUYER_PLATFORM_FEE = BigDecimal.valueOf(5);
@@ -145,8 +146,11 @@ public class OrderService {
         }
         orderItemRepository.saveAll(orderItems);
 
-        // 10. Save notifications (buyer + shops)
-        saveOrderNotifications(savedOrder, buyer, cartItems);
+        // 10. Notifications: buyer gets confirmation, admin gets notified to
+        // review/confirm the order. Shops are intentionally NOT notified yet
+        // — they only hear about the order once an admin confirms it (see
+        // AdminService.confirmOrder -> notificationService.notifyShopsOrderConfirmed).
+        notificationService.notifyOrderPlaced(savedOrder, orderItems);
 
         // 11. Clear cart
         cartItemRepository.deleteAll(cartItems);
@@ -168,6 +172,7 @@ public class OrderService {
         }
 
         if (order.getOrderStatus() == OrderStatus.SHIPPED ||
+                order.getOrderStatus() == OrderStatus.OUT_FOR_DELIVERY ||
                 order.getOrderStatus() == OrderStatus.DELIVERED) {
             throw new RuntimeException(
                     "Cannot cancel order that is already " + order.getOrderStatus()
@@ -299,29 +304,41 @@ public class OrderService {
         };
     }
 
-    private void saveOrderNotifications(Order order, Buyer buyer, List<CartItem> cartItems) {
-        // Notify buyer
-        Notification buyerNotif = new Notification();
-        buyerNotif.setUser(buyer.getUser());
-        buyerNotif.setTitle("Order Placed Successfully 🌿");
-        buyerNotif.setMessage("Your order #" + order.getOrderNumber() +
-                " has been placed for ₹" + order.getTotalAmount() + ". We'll notify you when confirmed.");
-        buyerNotif.setIsRead(false);
-        notificationRepository.save(buyerNotif);
+    // ── SHOP: MARK ORDER AS PACKED ──────────────────────────────────
+    /**
+     * Called once the admin has confirmed the order and the shop has
+     * physically packed the items. Moves the order from CONFIRMED to
+     * PROCESSING and notifies the buyer. Only a shop that actually has
+     * a product in the order may pack it.
+     */
+    @Transactional
+    public ShopOrderResponse packOrder(String shopEmail, Long orderId) {
+        Shop shop = shopRepository.findByUser_Email(shopEmail)
+                .orElseThrow(() -> new RuntimeException("Shop not found"));
 
-        // Notify each unique shop who has a product in this order
-        cartItems.stream()
-                .map(ci -> ci.getProduct().getShop())
-                .distinct()
-                .forEach(shop -> {
-                    Notification shopNotif = new Notification();
-                    shopNotif.setUser(shop.getUser());
-                    shopNotif.setTitle("New Order Received! 🧑‍🌾");
-                    shopNotif.setMessage("You have a new order #" + order.getOrderNumber() +
-                            " from " + buyer.getUser().getFullName() + ". Please confirm it.");
-                    shopNotif.setIsRead(false);
-                    notificationRepository.save(shopNotif);
-                });
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        List<OrderItem> items = orderItemRepository.findByOrder(order);
+        boolean shopHasItemsInOrder = items.stream()
+                .anyMatch(oi -> oi.getProduct().getShop().getId().equals(shop.getId()));
+        if (!shopHasItemsInOrder) {
+            throw new RuntimeException("Unauthorized: this order does not contain any of your products");
+        }
+
+        if (order.getOrderStatus() != OrderStatus.CONFIRMED) {
+            throw new RuntimeException(
+                    "Only CONFIRMED orders can be marked as packed. Current status: " + order.getOrderStatus());
+        }
+
+        order.setOrderStatus(OrderStatus.PROCESSING);
+        Order saved = orderRepository.save(order);
+
+        notificationService.notifyOrderPacked(saved);
+
+        log.info("Order {} marked as packed by shop {}", order.getOrderNumber(), shop.getId());
+
+        return buildShopOrderResponse(saved, shop);
     }
 
     // ── RESPONSE BUILDER ──────────────────────────────────────────

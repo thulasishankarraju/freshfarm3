@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<link rel="icon" type="image/png" href="../img/logo-icon.png">
-<title>Admin dashboard — FarmFresh</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="../img/logo-icon.png">
+  <title>Admin dashboard — FarmFresh</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 <div id="toast-root"></div>
@@ -18,19 +18,35 @@
 
   <div class="section-head" style="margin-top:34px;"><h3>Pending shop approvals</h3></div>
   <div id="pendingBox"><p class="muted">Loading…</p></div>
+
+  <div class="section-head" style="margin-top:34px;"><h3>Products awaiting a price</h3></div>
+  <p class="muted" style="margin-top:-8px;">Shops add products but never set a price — fix each one here before it can appear in the store.</p>
+  <div id="pendingPriceBox"><p class="muted">Loading…</p></div>
+
+  <div class="section-head" style="margin-top:34px;"><h3>Shop payouts</h3></div>
+  <p class="muted" style="margin-top:-8px;">Fix the amount owed to a shop, then mark it paid once you've sent the money to their registered bank account.</p>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="field-row">
+      <div><label>Shop ID</label><input type="number" id="payoutShopId" placeholder="e.g. 3"></div>
+      <div><label>Amount (₹)</label><input type="number" step="0.01" id="payoutAmount"></div>
+    </div>
+    <label>Note (optional)</label><input id="payoutNote" placeholder="e.g. Settlement for June sales">
+    <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="createPayout()">Fix payout</button>
+  </div>
+  <div id="payoutsBox"><p class="muted">Loading…</p></div>
 </div>
 
 <script src="../js/api.js"></script>
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
-if (requireAuth(["ADMIN"])) { loadStats(); loadPending(); }
+  if (requireAuth(["ADMIN"])) { loadStats(); loadPending(); loadPendingPrice(); loadPayouts(); }
 
-async function loadStats() {
-  const box = document.getElementById("stats");
-  try {
-    const d = await api.adminDashboard();
-    box.innerHTML = `
+  async function loadStats() {
+    const box = document.getElementById("stats");
+    try {
+      const d = await api.adminDashboard();
+      box.innerHTML = `
       <div class="stat"><div class="num">${d.totalUsers ?? 0}</div><div class="label">Total users</div></div>
       <div class="stat"><div class="num">${d.totalBuyers ?? 0}</div><div class="label">Buyers</div></div>
       <div class="stat"><div class="num">${d.totalShops ?? 0}</div><div class="label">Shops</div></div>
@@ -41,17 +57,17 @@ async function loadStats() {
       <div class="stat"><div class="num">${money(d.revenueToday)}</div><div class="label">Revenue today</div></div>
       <div class="stat"><div class="num">${d.activeDeliveryAgents ?? 0}</div><div class="label">Active agents</div></div>
     `;
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
-}
 
-async function loadPending() {
-  const box = document.getElementById("pendingBox");
-  try {
-    const shops = await api.pendingShops();
-    if (!shops.length) { box.innerHTML = `<p class="muted">No shops awaiting approval.</p>`; return; }
-    box.innerHTML = shops.map(f => `
+  async function loadPending() {
+    const box = document.getElementById("pendingBox");
+    try {
+      const shops = await api.pendingShops();
+      if (!shops.length) { box.innerHTML = `<p class="muted">No shops awaiting approval.</p>`; return; }
+      box.innerHTML = shops.map(f => `
       <div class="card flex-between" style="margin-bottom:12px;">
         <div>
           <strong>${f.ownerName}</strong> — ${f.shopName || ''}
@@ -62,13 +78,88 @@ async function loadPending() {
           <button class="btn btn-danger btn-sm" onclick="reject(${f.shopId})">Reject</button>
         </div>
       </div>`).join("");
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
-}
 
-async function approve(id) { try { await api.approveShop(id); toast("Shop approved"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
-async function reject(id) { try { await api.rejectShop(id); toast("Shop rejected"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+  async function approve(id) { try { await api.approveShop(id); toast("Shop approved"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+  async function reject(id) { try { await api.rejectShop(id); toast("Shop rejected"); loadPending(); loadStats(); } catch (e) { toast(e.message, "err"); } }
+
+  async function loadPendingPrice() {
+    const box = document.getElementById("pendingPriceBox");
+    try {
+      const products = await api.adminPendingPriceProducts();
+      if (!products.length) { box.innerHTML = `<p class="muted">Nothing waiting on a price right now.</p>`; return; }
+      box.innerHTML = products.map(p => `
+      <div class="card flex-between" style="margin-bottom:12px;">
+        <div>
+          <strong>${p.name}</strong> — ${p.shopName || ''}
+          <div class="muted">${p.quantity} ${p.unitType ? p.unitType.toLowerCase() : ''} in stock</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" step="0.01" id="price-${p.id}" placeholder="Price (₹)" style="width:110px;">
+          <button class="btn btn-primary btn-sm" onclick="fixPrice(${p.id})">Set price</button>
+        </div>
+      </div>`).join("");
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
+  }
+
+  async function fixPrice(productId) {
+    const input = document.getElementById(`price-${productId}`);
+    const price = Number(input.value);
+    if (!price || price <= 0) { toast("Enter a valid price", "err"); return; }
+    try {
+      await api.adminFixPrice(productId, price);
+      toast("Price fixed — product is now live");
+      loadPendingPrice();
+      loadStats();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  async function loadPayouts() {
+    const box = document.getElementById("payoutsBox");
+    try {
+      const payouts = await api.adminAllPayouts();
+      if (!payouts.length) { box.innerHTML = `<p class="muted">No payouts fixed yet.</p>`; return; }
+      box.innerHTML = payouts.map(p => `
+      <div class="card flex-between" style="margin-bottom:10px;">
+        <div>
+          <strong>${p.shopName}</strong> — ${money(p.amount)}
+          <span class="badge ${p.status === 'PAID' ? 'badge-active' : 'badge-inactive'}">${p.status}</span>
+          <div class="muted">${p.note || ''}</div>
+        </div>
+        ${p.status === 'PENDING' ? `<button class="btn btn-primary btn-sm" onclick="markPaid(${p.id})">Mark as paid</button>` : ''}
+      </div>`).join("");
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
+  }
+
+  async function createPayout() {
+    const shopId = Number(document.getElementById("payoutShopId").value);
+    const amount = Number(document.getElementById("payoutAmount").value);
+    const note = document.getElementById("payoutNote").value.trim();
+    if (!shopId || !amount || amount <= 0) { toast("Enter a shop ID and a valid amount", "err"); return; }
+    try {
+      await api.adminCreatePayout(shopId, { amount, note });
+      toast("Payout fixed — shop notified");
+      document.getElementById("payoutShopId").value = "";
+      document.getElementById("payoutAmount").value = "";
+      document.getElementById("payoutNote").value = "";
+      loadPayouts();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  async function markPaid(id) {
+    try {
+      await api.adminMarkPayoutPaid(id);
+      toast("Payout marked as paid");
+      loadPayouts();
+    } catch (e) { toast(e.message, "err"); }
+  }
 </script>
 </body>
 </html>

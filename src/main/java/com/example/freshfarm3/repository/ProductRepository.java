@@ -32,14 +32,26 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // ── Paginated variants used by ProductService ──────────────
     Page<Product> findByStatus(Product.ProductStatus status, Pageable pageable);
 
+    // Buyer-facing catalog: only priceFixed products should ever be listed.
+    Page<Product> findByStatusAndPriceFixedTrue(Product.ProductStatus status, Pageable pageable);
+
     Page<Product> findByCategory_IdAndStatus(
             Long categoryId, Product.ProductStatus status, Pageable pageable);
+
+    Page<Product> findByCategory_IdAndStatusAndPriceFixedTrue(
+            Long categoryId, Product.ProductStatus status, Pageable pageable);
+
+    // ── Admin: products awaiting a price ────────────────────────
+    List<Product> findByPriceFixedFalseOrderByCreatedAtAsc();
 
     // ── Search by name ────────────────────────────────────────
     List<Product> findByNameContainingIgnoreCaseAndStatus(
             String name, Product.ProductStatus status);
 
     Page<Product> findByNameContainingIgnoreCaseAndStatus(
+            String name, Product.ProductStatus status, Pageable pageable);
+
+    Page<Product> findByNameContainingIgnoreCaseAndStatusAndPriceFixedTrue(
             String name, Product.ProductStatus status, Pageable pageable);
 
     // ── Keyword search across name + description ──────────────

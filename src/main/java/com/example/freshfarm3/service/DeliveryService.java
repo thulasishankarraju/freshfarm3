@@ -1,13 +1,17 @@
 package com.example.freshfarm3.service;
 
 import com.example.freshfarm3.dto.request.DeliveryRequest;
+import com.example.freshfarm3.dto.response.AgentEarningsResponse;
 import com.example.freshfarm3.dto.response.DeliveryResponse;
+import com.example.freshfarm3.entity.AgentEarning;
 import com.example.freshfarm3.entity.Delivery;
 import com.example.freshfarm3.entity.DeliveryAgent;
 import com.example.freshfarm3.entity.Notification;
 import com.example.freshfarm3.entity.Order;
+import com.example.freshfarm3.enums.AgentEarningType;
 import com.example.freshfarm3.enums.DeliveryStatus;
 import com.example.freshfarm3.enums.OrderStatus;
+import com.example.freshfarm3.repository.AgentEarningRepository;
 import com.example.freshfarm3.repository.DeliveryAgentRepository;
 import com.example.freshfarm3.repository.DeliveryRepository;
 import com.example.freshfarm3.repository.NotificationRepository;
@@ -19,7 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,8 +42,18 @@ public class DeliveryService {
     private final UserRepository          userRepository;
     private final EmailService            emailService;
     private final SmsService              smsService;
+    private final AgentEarningRepository  agentEarningRepository;
 
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    // Flat fee an agent earns for each delivery completed, on top of any
+    // buyer tip on that order.
+    private static final BigDecimal AGENT_BASE_DELIVERY_FEE = BigDecimal.valueOf(30);
+
+    // Motivation bonus: every 5th delivery completed in a single calendar
+    // day earns the agent an extra ₹9.
+    private static final int        AGENT_BONUS_EVERY_N_DELIVERIES = 5;
+    private static final BigDecimal AGENT_BONUS_AMOUNT             = BigDecimal.valueOf(9);
 
     // ── ASSIGN DELIVERY ───────────────────────────────────────────
     @Transactional
@@ -121,6 +137,11 @@ public class DeliveryService {
         deliveryRepository.save(delivery);
 
         Order order = delivery.getOrder();
+        // Order is now with the delivery agent, on its way to being
+        // dispatched — buyer-visible progression: PROCESSING (packed) ->
+        // SHIPPED (picked up) -> OUT_FOR_DELIVERY -> DELIVERED.
+        order.setOrderStatus(OrderStatus.SHIPPED);
+        orderRepository.save(order);
 
         // Notify buyer — this was previously missing entirely.
         saveNotification(
@@ -153,23 +174,39 @@ public class DeliveryService {
         deliveryRepository.save(delivery);
 
         Order order = delivery.getOrder();
-        order.setOrderStatus(OrderStatus.SHIPPED);
+        // Previously this incorrectly set OrderStatus.SHIPPED, which buyers
+        // never see as a distinct "out for delivery" status. Use the enum
+        // value that actually matches what's happening and what the buyer
+        // sees on their order-tracking page.
+        order.setOrderStatus(OrderStatus.OUT_FOR_DELIVERY);
         orderRepository.save(order);
 
-        // Notify buyer
+        // Notify buyer — resend the OTP now, at the moment it's actually
+        // needed, in addition to when it was first issued at assignment.
+        String otp = delivery.getOtp();
         saveNotification(
                 order.getBuyer().getUser(),
                 "Your Order Is On The Way! 🚚",
-                "Order #" + order.getOrderNumber() + " is out for delivery. Prepare your OTP."
+                "Order #" + order.getOrderNumber() + " is out for delivery. Your OTP is " + otp +
+                        " — share it with the delivery agent to confirm receipt."
         );
         emailService.send(
                 order.getBuyer().getUser().getEmail(),
                 "FarmFresh — Order Out For Delivery",
                 "Hi " + order.getBuyer().getUser().getFullName() + ",\n\n" +
-                        "Your order #" + order.getOrderNumber() + " is out for delivery. " +
-                        "Please have your OTP ready to share with the delivery agent.\n\n" +
+                        "Your order #" + order.getOrderNumber() + " is out for delivery.\n" +
+                        "Your OTP is: " + otp + "\n" +
+                        "Please share this OTP ONLY with the delivery agent to confirm you received it.\n\n" +
                         "Team FarmFresh"
         );
+        String buyerPhone = order.getBuyer().getUser().getPhone();
+        if (buyerPhone != null) {
+            smsService.send(
+                    "+91" + buyerPhone,
+                    "FarmFresh: Order #" + order.getOrderNumber() + " is out for delivery. Your OTP is " +
+                            otp + ". Share only with your delivery agent."
+            );
+        }
 
         log.info("Order out for delivery: {}", order.getOrderNumber());
         return mapToResponse(delivery, true);
@@ -205,11 +242,132 @@ public class DeliveryService {
         agent.setIsAvailable(true);
         deliveryAgentRepository.save(agent);
 
+        // ── Record the agent's earning for this delivery, and award a
+        // ── ₹9 bonus on every 5th delivery completed today.
+        recordAgentEarningAndBonus(agent, delivery, order);
+
         // Notify buyer and shop
         notifyDeliveryComplete(order, agent);
 
         log.info("Order delivered: {}", order.getOrderNumber());
         return mapToResponse(delivery, false);
+    }
+
+    // ── AGENT EARNINGS: record delivery fee + daily bonus ───────────
+    private void recordAgentEarningAndBonus(DeliveryAgent agent, Delivery delivery, Order order) {
+        BigDecimal tip = order.getTipAmount() != null ? order.getTipAmount() : BigDecimal.ZERO;
+        BigDecimal earningAmount = AGENT_BASE_DELIVERY_FEE.add(tip);
+
+        agentEarningRepository.save(AgentEarning.builder()
+                .agent(agent)
+                .delivery(delivery)
+                .type(AgentEarningType.DELIVERY_FEE)
+                .amount(earningAmount)
+                .note("Delivery fee for order #" + order.getOrderNumber())
+                .build());
+
+        // Count how many deliveries this agent has completed today
+        // (including the one we just recorded) to see if a bonus is due.
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        long deliveriesToday = deliveryRepository
+                .findByDeliveryAgentAndDeliveryStatusAndDeliveredAtBetween(
+                        agent, DeliveryStatus.DELIVERED, startOfDay, endOfDay)
+                .size();
+
+        if (deliveriesToday > 0 && deliveriesToday % AGENT_BONUS_EVERY_N_DELIVERIES == 0) {
+            agentEarningRepository.save(AgentEarning.builder()
+                    .agent(agent)
+                    .delivery(delivery)
+                    .type(AgentEarningType.BONUS)
+                    .amount(AGENT_BONUS_AMOUNT)
+                    .note("Bonus for completing " + deliveriesToday + " deliveries today")
+                    .build());
+
+            notifyAgentBonus(agent, (int) deliveriesToday);
+            log.info("Agent {} earned ₹{} bonus for {} deliveries today",
+                    agent.getUser().getEmail(), AGENT_BONUS_AMOUNT, deliveriesToday);
+        }
+    }
+
+    private void notifyAgentBonus(DeliveryAgent agent, int deliveriesToday) {
+        saveNotification(
+                agent.getUser(),
+                "Bonus Earned! 🎉",
+                "You completed " + deliveriesToday + " deliveries today and earned a ₹" +
+                        AGENT_BONUS_AMOUNT + " bonus!"
+        );
+        String phone = agent.getPhone();
+        if (phone != null) {
+            smsService.send(
+                    "+91" + phone,
+                    "FarmFresh: Great job! You earned a ₹" + AGENT_BONUS_AMOUNT + " bonus for " +
+                            deliveriesToday + " deliveries today."
+            );
+        }
+    }
+
+    // ── AGENT: EARNINGS DASHBOARD ────────────────────────────────────
+    @Transactional(readOnly = true)
+    public AgentEarningsResponse getAgentEarningsSummary(String agentEmail) {
+        DeliveryAgent agent = getAgent(agentEmail);
+
+        List<AgentEarning> all = agentEarningRepository.findByAgentOrderByCreatedAtDesc(agent);
+
+        LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfDay = startOfDay.plusDays(1);
+        List<AgentEarning> todayEarnings = agentEarningRepository
+                .findByAgentAndCreatedAtBetween(agent, startOfDay, endOfDay);
+
+        long todayDeliveries = deliveryRepository
+                .findByDeliveryAgentAndDeliveryStatusAndDeliveredAtBetween(
+                        agent, DeliveryStatus.DELIVERED, startOfDay, endOfDay)
+                .size();
+
+        BigDecimal todayTotal = todayEarnings.stream()
+                .map(AgentEarning::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal grandTotal = all.stream()
+                .map(AgentEarning::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalBonus = all.stream()
+                .filter(e -> e.getType() == AgentEarningType.BONUS)
+                .map(AgentEarning::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long totalDeliveries = all.stream()
+                .filter(e -> e.getType() == AgentEarningType.DELIVERY_FEE)
+                .count();
+
+        int untilNextBonus = (int) (AGENT_BONUS_EVERY_N_DELIVERIES -
+                (todayDeliveries % AGENT_BONUS_EVERY_N_DELIVERIES));
+        if (untilNextBonus == AGENT_BONUS_EVERY_N_DELIVERIES) {
+            untilNextBonus = 0;
+        }
+
+        List<AgentEarningsResponse.EarningItem> recent = all.stream()
+                .limit(20)
+                .map(e -> AgentEarningsResponse.EarningItem.builder()
+                        .id(e.getId())
+                        .type(e.getType().name())
+                        .amount(e.getAmount())
+                        .orderNumber(e.getDelivery() != null ? e.getDelivery().getOrder().getOrderNumber() : null)
+                        .note(e.getNote())
+                        .createdAt(e.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+        return AgentEarningsResponse.builder()
+                .todayDeliveries(todayDeliveries)
+                .todayEarnings(todayTotal)
+                .totalDeliveries(totalDeliveries)
+                .totalEarnings(grandTotal)
+                .totalBonus(totalBonus)
+                .deliveriesUntilNextBonus(untilNextBonus)
+                .recent(recent)
+                .build();
     }
 
     // ── GET AGENT'S DELIVERIES ────────────────────────────────────
@@ -276,7 +434,7 @@ public class DeliveryService {
                             "Your order #" + order.getOrderNumber() + " has been assigned to " +
                             agentName + " (" + agent.getVehicleNumber() + ").\n" +
                             (agentPhone != null ? "Agent contact number: " + agentPhone +
-                                    " — call or message them directly for accurate delivery.\n\n" : "\n") +
+                                                  " — call or message them directly for accurate delivery.\n\n" : "\n") +
                             "Your delivery OTP is: " + otp + "\n" +
                             "Please share this OTP ONLY with the delivery agent at the time of delivery.\n\n" +
                             "Estimated delivery time: within 3 hours.\n\nTeam FarmFresh"

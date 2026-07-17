@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<link rel="icon" type="image/png" href="../img/logo-icon.png">
-<title>Shop dashboard — FarmFresh</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/style.css">
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/png" href="../img/logo-icon.png">
+  <title>Shop dashboard — FarmFresh</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 <div id="toast-root"></div>
@@ -14,7 +14,8 @@
 
 <div class="container page">
   <h2>Shop dashboard</h2>
-  <div id="stats" class="grid grid-3" style="margin-bottom:30px;"><p class="muted">Loading…</p></div>
+  <div id="stats" class="grid grid-3" style="margin-bottom:16px;"><p class="muted">Loading…</p></div>
+  <div id="payoutStats" class="grid grid-3" style="margin-bottom:30px;"></div>
 
   <div class="section-head"><h3>Orders on my products</h3></div>
   <div id="ordersBox"><p class="muted">Loading…</p></div>
@@ -24,31 +25,36 @@
 <script src="../js/auth.js"></script>
 <script src="../js/nav.js"></script>
 <script>
-if (requireAuth(["SHOP"])) { loadStats(); loadOrders(); }
+  if (requireAuth(["SHOP"])) { loadStats(); loadOrders(); }
 
-async function loadStats() {
-  const box = document.getElementById("stats");
-  try {
-    // GET /api/shop/dashboard — returns shopId, ownerName, shopName,
-    // activeProducts, inactiveProducts, outOfStock, totalProducts
-    const d = await api.shopDashboard();
-    box.innerHTML = `
+  async function loadStats() {
+    const box = document.getElementById("stats");
+    try {
+      // GET /api/shop/dashboard — returns shopId, ownerName, shopName,
+      // activeProducts, inactiveProducts, outOfStock, totalProducts,
+      // pendingPayoutAmount, paidPayoutAmount
+      const d = await api.shopDashboard();
+      box.innerHTML = `
       <div class="stat"><div class="num">${d.activeProducts ?? 0}</div><div class="label">Active products</div></div>
       <div class="stat"><div class="num">${d.inactiveProducts ?? 0}</div><div class="label">Inactive</div></div>
       <div class="stat"><div class="num">${d.outOfStock ?? 0}</div><div class="label">Out of stock</div></div>
       <div class="stat"><div class="num">${d.totalProducts ?? 0}</div><div class="label">Total products (${d.shopName || ''})</div></div>
     `;
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+      document.getElementById("payoutStats").innerHTML = `
+      <div class="stat"><div class="num">${money(d.pendingPayoutAmount ?? 0)}</div><div class="label">Payout pending from admin</div></div>
+      <div class="stat"><div class="num">${money(d.paidPayoutAmount ?? 0)}</div><div class="label">Payout paid to date</div></div>
+    `;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
-}
 
-async function loadOrders() {
-  const box = document.getElementById("ordersBox");
-  try {
-    const orders = await api.shopOrders();
-    if (!orders.length) { box.innerHTML = `<p class="muted">No orders yet.</p>`; return; }
-    box.innerHTML = orders.map(o => `
+  async function loadOrders() {
+    const box = document.getElementById("ordersBox");
+    try {
+      const orders = await api.shopOrders();
+      if (!orders.length) { box.innerHTML = `<p class="muted">No orders yet.</p>`; return; }
+      box.innerHTML = orders.map(o => `
       <div class="card" style="margin-bottom:12px;">
         <div class="flex-between">
           <div><strong>${o.orderNumber}</strong> <span class="badge badge-active">${o.orderStatus}</span></div>
@@ -58,11 +64,27 @@ async function loadOrders() {
         <div class="muted" style="font-size:.82rem;margin-top:6px;border-top:1px solid var(--line);padding-top:6px;">
           Your earnings: ${money(o.grossEarnings)} − platform fee ${money(o.platformFee)} = <strong>${money(o.netEarnings)}</strong> net
         </div>
+        ${o.orderStatus === 'CONFIRMED' ? `
+        <div style="margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="packOrder(${o.orderId}, this)">Mark as packed</button>
+        </div>` : ''}
       </div>`).join("");
-  } catch (e) {
-    box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    } catch (e) {
+      box.innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+    }
   }
-}
+
+  async function packOrder(orderId, btn) {
+    btn.disabled = true;
+    try {
+      await api.packOrder(orderId);
+      toast("Order marked as packed — buyer notified");
+      loadOrders();
+    } catch (e) {
+      toast(e.message, "err");
+      btn.disabled = false;
+    }
+  }
 </script>
 </body>
 </html>

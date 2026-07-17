@@ -64,7 +64,42 @@ public class NotificationService {
             );
         }
 
-        // ── SHOPS: Notify each unique shop ──
+        // ── ADMIN: Notify every admin that a new order needs confirming ──
+        // (The shop is deliberately NOT notified at this stage — they only
+        // hear about the order once an admin has reviewed and confirmed it,
+        // see notifyShopsOrderConfirmed below.)
+        List<User> admins = userRepository.findByRole(com.example.freshfarm3.enums.Role.ADMIN);
+        admins.forEach(admin -> {
+            saveNotification(
+                    admin,
+                    "New Order Placed 🛒",
+                    "Order #" + orderNum + " from " + buyer.getFullName() + " for " + amount +
+                            " is awaiting your confirmation."
+            );
+
+            emailService.send(
+                    admin.getEmail(),
+                    "FarmFresh — New Order Awaiting Confirmation",
+                    "Hi " + admin.getFullName() + ",\n\n" +
+                            "A new order #" + orderNum + " from " + buyer.getFullName() + " for " + amount +
+                            " has been placed and is awaiting your confirmation.\n\n" +
+                            "Team FarmFresh"
+            );
+        });
+
+        log.info("Order-placed notifications sent for order: {}", orderNum);
+    }
+
+    // ── ORDER CONFIRMED (by admin) → notify shop(s) to start packing ──
+    /**
+     * Called from AdminService.confirmOrder once an admin approves the
+     * order. Notifies every unique shop involved so they know to pack it.
+     */
+    @Transactional
+    public void notifyShopsOrderConfirmed(Order order, List<OrderItem> items) {
+        String orderNum = order.getOrderNumber();
+        User   buyer     = order.getBuyer().getUser();
+
         items.stream()
                 .map(oi -> oi.getProduct().getShop())
                 .distinct()
@@ -73,22 +108,48 @@ public class NotificationService {
 
                     saveNotification(
                             shopUser,
-                            "New Order Received! 🧑‍🌾",
-                            "New order #" + orderNum + " from " + buyer.getFullName() +
-                                    ". Please confirm in your dashboard."
+                            "Order Confirmed — Please Pack It 📦",
+                            "Order #" + orderNum + " from " + buyer.getFullName() +
+                                    " has been confirmed by the admin. Please pack it for delivery."
                     );
 
                     emailService.send(
                             shopUser.getEmail(),
-                            "FarmFresh — New Order for You! 🧑‍🌾",
+                            "FarmFresh — Order Confirmed, Please Pack",
                             "Hi " + shopUser.getFullName() + ",\n\n" +
-                                    "You have a new order #" + orderNum + " from " + buyer.getFullName() + ".\n" +
-                                    "Please log in and confirm it so we can dispatch it.\n\n" +
+                                    "Order #" + orderNum + " from " + buyer.getFullName() +
+                                    " has been confirmed by the admin.\n" +
+                                    "Please pack it and mark it as packed in your dashboard.\n\n" +
                                     "Team FarmFresh"
                     );
                 });
+    }
 
-        log.info("Order-placed notifications sent for order: {}", orderNum);
+    // ── ORDER PACKED (by shop) → notify buyer ──────────────────────
+    @Transactional
+    public void notifyOrderPacked(Order order) {
+        User buyer = order.getBuyer().getUser();
+
+        saveNotification(
+                buyer,
+                "Order Packed 📦",
+                "Your order #" + order.getOrderNumber() + " has been packed and will be out for delivery soon."
+        );
+
+        emailService.send(
+                buyer.getEmail(),
+                "FarmFresh — Order Packed 📦",
+                "Hi " + buyer.getFullName() + ",\n\n" +
+                        "Your order #" + order.getOrderNumber() + " has been packed and is ready for dispatch.\n\n" +
+                        "Team FarmFresh"
+        );
+
+        if (buyer.getPhone() != null) {
+            smsService.send(
+                    "+91" + buyer.getPhone(),
+                    "FarmFresh: Order #" + order.getOrderNumber() + " has been packed."
+            );
+        }
     }
 
     // ── ORDER CONFIRMED ───────────────────────────────────────────
@@ -142,6 +203,68 @@ public class NotificationService {
             smsService.send(
                     "+91" + buyer.getPhone(),
                     "FarmFresh: Order #" + order.getOrderNumber() + " cancelled."
+            );
+        }
+    }
+
+    // ── SHOP PAYOUT: admin fixed an amount owed to the shop ─────────
+    @Transactional
+    public void notifyPayoutCreated(com.example.freshfarm3.entity.Shop shop, com.example.freshfarm3.entity.ShopPayout payout) {
+        User shopUser = shop.getUser();
+        String amount = "₹" + payout.getAmount();
+
+        saveNotification(
+                shopUser,
+                "Payout Fixed 💰",
+                "The admin has fixed a payout of " + amount + " for your shop. Status: Pending."
+        );
+
+        emailService.send(
+                shopUser.getEmail(),
+                "FarmFresh — Payout Fixed",
+                "Hi " + shopUser.getFullName() + ",\n\n" +
+                        "The admin has fixed a payout of " + amount + " for your shop's sales.\n" +
+                        "It will be sent to your registered bank account shortly. You can track its status " +
+                        "on your dashboard.\n\n" +
+                        "Team FarmFresh"
+        );
+    }
+
+    // ── SHOP PAYOUT: admin sent the money ────────────────────────────
+    @Transactional
+    public void notifyPayoutPaid(com.example.freshfarm3.entity.Shop shop, com.example.freshfarm3.entity.ShopPayout payout) {
+        User shopUser = shop.getUser();
+        String amount = "₹" + payout.getAmount();
+
+        saveNotification(
+                shopUser,
+                "Payout Sent ✅",
+                "Your payout of " + amount + " has been sent to your registered bank account."
+        );
+
+        emailService.send(
+                shopUser.getEmail(),
+                "FarmFresh — Payout Sent ✅",
+                "Hi " + shopUser.getFullName() + ",\n\n" +
+                        "Your payout of " + amount + " has been sent to your registered bank account.\n\n" +
+                        "Team FarmFresh"
+        );
+    }
+
+    // ── DELIVERY AGENT: earned a bonus ───────────────────────────────
+    @Transactional
+    public void notifyAgentBonus(User agentUser, java.math.BigDecimal bonusAmount, int deliveryCountToday) {
+        saveNotification(
+                agentUser,
+                "Bonus Earned! 🎉",
+                "You completed " + deliveryCountToday + " deliveries today and earned a ₹" + bonusAmount + " bonus!"
+        );
+
+        if (agentUser.getPhone() != null) {
+            smsService.send(
+                    "+91" + agentUser.getPhone(),
+                    "FarmFresh: Great job! You earned a ₹" + bonusAmount + " bonus for " +
+                            deliveryCountToday + " deliveries today."
             );
         }
     }

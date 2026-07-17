@@ -26,8 +26,18 @@ public class Product extends BaseEntity {
     private String description;
 
     // Price per unit sold: per kg (KG), per piece (PIECE), or per liter (LITER).
-    @Column(nullable = false, precision = 10, scale = 2)
+    // NULL until an admin fixes it — see priceFixed. Shops are not allowed to
+    // set this themselves; they submit the product without a price, and the
+    // admin sets (and can later update) the final selling price.
+    @Column(precision = 10, scale = 2)
     private BigDecimal price;
+
+    // True once an admin has set `price`. Products with priceFixed = false
+    // are never shown to buyers (see ProductService.getAllAvailableProducts /
+    // searchProducts / filterByCategory), even if their stock is > 0.
+    @Builder.Default
+    @Column(name = "price_fixed", nullable = false)
+    private Boolean priceFixed = false;
 
     // How this product is sold & stocked. See UnitType for the rules.
     @Enumerated(EnumType.STRING)
@@ -153,7 +163,8 @@ public class Product extends BaseEntity {
      * Called by CartService and OrderService before processing.
      */
     public boolean hasStock(BigDecimal requestedQty) {
-        if (!Boolean.TRUE.equals(this.isAvailable) || this.stockQuantity == null || requestedQty == null) {
+        if (!Boolean.TRUE.equals(this.isAvailable) || !Boolean.TRUE.equals(this.priceFixed)
+                || this.stockQuantity == null || requestedQty == null) {
             return false;
         }
         BigDecimal delta = stockDeltaFor(requestedQty);
