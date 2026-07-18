@@ -5,7 +5,7 @@
    else in this app builds a fetch() URL by hand.
 =========================================================== */
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = "http://3.95.220.152:8080";
 
 function authHeaders(extra = {}) {
   const token = localStorage.getItem("ff_token");

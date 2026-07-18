@@ -44,16 +44,107 @@ public class SecurityConfig {
             "http://localhost:5501"
     );
 
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
+
+                .headers(headers ->
+                        headers.frameOptions(frame -> frame.sameOrigin())
+                )
+
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .authorizeHttpRequests(auth -> auth
+
+                        // H2 Console
+                        .requestMatchers("/h2-console/**").permitAll()
+
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/shop/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/agent/{agentId:[0-9]+}", "/api/reviews/agent/{agentId:[0-9]+}/summary").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+
+                        .requestMatchers(
+                                "/", "/index.html", "/shop.html", "/cart.html",
+                                "/checkout.html", "/login.html", "/register.html",
+                                "/product-detail.html", "/order-success.html",
+                                "/orders.html", "/subscriptions.html", "/forgot-password.html",
+                                "/shop/**", "/admin/**", "/agent/**",
+                                "/css/**", "/js/**", "/images/**", "/img/**", "/favicon.ico"
+                        ).permitAll()
+
+                        .requestMatchers("/api/buyers/**").hasRole("BUYER")
+                        .requestMatchers("/api/shops/**").hasAnyRole("SHOP", "ADMIN")
+
+                        .requestMatchers("/api/cart/**").hasRole("BUYER")
+
+                        // More specific /api/orders/** rules MUST come before the general one below,
+                        // since Spring Security uses first-match-wins.
+                        .requestMatchers("/api/orders/shop/**").hasAnyRole("SHOP", "ADMIN")
+                        .requestMatchers("/api/orders/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/**").hasAnyRole("BUYER", "ADMIN")
+
+                        .requestMatchers("/api/addresses/**").hasRole("BUYER")
+
+                        .requestMatchers("/api/payments/**").hasRole("BUYER")
+                        .requestMatchers(HttpMethod.GET, "/api/delivery/**").hasAnyRole("AGENT", "ADMIN", "BUYER")
+                        .requestMatchers(HttpMethod.PUT, "/api/delivery/**").hasAnyRole("AGENT", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/delivery/**").hasAnyRole("AGENT", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/delivery/**").hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.POST, "/api/reviews").hasRole("BUYER")
+                        .requestMatchers(HttpMethod.GET,  "/api/reviews/my-reviews").hasRole("BUYER")
+                        .requestMatchers(HttpMethod.PUT, "/api/reviews/**").hasAnyRole("BUYER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/reviews/**").hasAnyRole("BUYER", "ADMIN")
+
+                        .requestMatchers(HttpMethod.POST, "/api/coupons/validate").hasRole("BUYER")
+                        .requestMatchers(HttpMethod.GET,  "/api/coupons").hasAnyRole("ADMIN", "BUYER")
+                        .requestMatchers("/api/coupons/create").hasRole("ADMIN")
+                        .requestMatchers("/api/coupons/update/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/coupons/**").hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.GET, "/api/subscriptions/**").hasAnyRole("BUYER", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/subscriptions/**").hasRole("BUYER")
+                        .requestMatchers(HttpMethod.PUT, "/api/subscriptions/**").hasAnyRole("BUYER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/subscriptions/**").hasAnyRole("BUYER", "ADMIN")
+
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // your existing rules...
+
+                        .anyRequest().authenticated()
+                )
+
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+  /*  @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+               // .csrf(AbstractHttpConfigurer::disable)
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers("/h2-console/**")
+                        .disable()
+                )
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
 
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/product/**").permitAll()
@@ -113,7 +204,7 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
+    }*/
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
